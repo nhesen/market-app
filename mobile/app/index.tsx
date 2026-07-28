@@ -43,7 +43,7 @@ export default function Home() {
       </View>
     );
   const d = q.data,
-    b = d.branches[0];
+    b = d.selected_branch;
   return (
     <SafeAreaView edges={["top","left","right"]} style={{ flex: 1, backgroundColor: colors.background }}>
       <ScrollView contentContainerStyle={s.page}>
@@ -64,13 +64,13 @@ export default function Home() {
         <Title text="Xəbərlər" />
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           {d.news.map((n) => (
-            <View style={s.news} key={n.id}>
+            <Pressable style={s.news} key={n.id} onPress={()=>router.push({pathname:'/news-detail' as any,params:{id:n.id}})}>
               <View style={s.newsImage}>
                 <Text style={{ fontSize: 34 }}>🛒</Text>
               </View>
               <Text style={s.cardTitle}>{n.title_az}</Text>
               <Text style={s.muted}>{n.summary_az}</Text>
-            </View>
+            </Pressable>
           ))}
         </ScrollView>
         <Title text="Sürətli keçidlər" />
@@ -86,7 +86,7 @@ export default function Home() {
             <Pressable
               key={x[1]}
               style={s.quickItem}
-              onPress={() => router.push(["/products","/products","/report","/suggestions","/branches","/scanner"][i] as any)}
+              onPress={() => router.push(["/products","/discounts","/report","/suggestions","/branches","/scanner"][i] as any)}
             >
               <Text style={s.quickIcon}>{x[0]}</Text>
               <Text style={s.quickText}>{x[1]}</Text>
@@ -104,12 +104,12 @@ export default function Home() {
         <Title text="Seçilmiş endirimlər" />
         <ScrollView horizontal>
           {d.discounts.map((p) => (
-            <View style={s.product} key={p.id}>
+            <Pressable style={s.product} key={p.id} onPress={()=>router.push({pathname:'/product-detail' as any,params:{id:p.id}})}>
               <Text style={{ fontSize: 40 }}>🥛</Text>
               <Text style={s.cardTitle}>{p.name}</Text>
               <Text style={s.old}>{p.price.toFixed(2)} ₼</Text>
               <Text style={s.price}>{p.discount_price.toFixed(2)} ₼</Text>
-            </View>
+            </Pressable>
           ))}
         </ScrollView>
         <View style={s.sectionRow}><Title text="Problemlərim"/><Pressable onPress={()=>router.push('/reports' as any)}><Text style={s.seeAll}>Hamısına bax</Text></Pressable></View>
