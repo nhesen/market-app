@@ -19,4 +19,5 @@ def test_staff_audit_duplicate_and_finding_incident(client,staff_token,admin_tok
     assert done.status_code==200 and done.json()["status"]=="COMPLETED"
     assert any(i["source"]=="STAFF_AUDIT" for i in client.get("/api/v1/admin/incidents",headers=auth(admin_token)).json())
     assert client.get("/api/v1/admin/audit-quality-flags",headers=auth(admin_token)).status_code==200
-
+    quality=client.get("/api/v1/staff/quality-summary",headers=auth(staff_token))
+    assert quality.status_code==200 and 0<=quality.json()["score"]<=100 and "completion_rate" in quality.json()

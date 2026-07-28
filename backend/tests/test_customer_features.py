@@ -28,3 +28,15 @@ def test_favourite_suggestion_and_admin_notification(client,customer_token,admin
 def test_customer_cannot_list_admin_suggestions(client,customer_token):
     assert client.get("/api/v1/admin/suggestions",headers=auth(customer_token)).status_code==403
 
+def test_customer_detail_endpoints_and_selected_branch(client,customer_token):
+    headers=auth(customer_token);branches=client.get("/api/v1/branches",headers=headers).json();branch=branches[1]
+    home=client.get(f'/api/v1/home?branch_id={branch["id"]}',headers=headers)
+    assert home.status_code==200 and home.json()["selected_branch"]["id"]==branch["id"]
+    detail=client.get(f'/api/v1/branches/{branch["id"]}',headers=headers)
+    assert detail.status_code==200 and isinstance(detail.json()["services"],list)
+    product=client.get("/api/v1/products",headers=headers).json()[0]
+    product_detail=client.get(f'/api/v1/products/{product["id"]}',headers=headers)
+    assert product_detail.status_code==200 and len(product_detail.json()["branches"])==3
+    campaigns=client.get("/api/v1/discounts",headers=headers).json()
+    assert campaigns and client.get(f'/api/v1/discounts/{campaigns[0]["id"]}',headers=headers).status_code==200
+    assert client.get("/api/v1/home?branch_id=not-this-tenant",headers=headers).status_code==404

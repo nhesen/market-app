@@ -136,3 +136,12 @@ Abbreviations: C = customer, S = staff, BA = branch admin, HO = head office, PA 
 10. Remaining environment limitation: Docker Desktop daemon was not running, so PostgreSQL itself could not be started. This is recorded as an environment blocker rather than presented as a successful PostgreSQL runtime test.
 
 Rows affected by these repairs: R13 and R38 improved but remain `PARTIALLY_WORKING` because their full specification surface is wider; R40 remains `PARTIALLY_WORKING` pending preferences; R47 is now `VERIFIED_WORKING` for login/session role evidence; R48 is `VERIFIED_WORKING` for the specified top-level counts and idempotency, while not every optional operational seed subtype exists.
+
+### R60–R62 implementation pass — 2026-07-29
+
+- R60 customer: added API-backed news detail, product detail with branch prices/availability, campaign list/detail, branch detail/services, persistent selected branch, interactive profile navigation, privacy/delete-request, and dedicated reports/settings routes. Home cards now navigate to details and use the persisted selected branch.
+- R61 staff: replaced text-only audit entry with camera barcode scanning, expiry-photo capture, OCR candidates, manual correction tracking, condition selection, review, persisted photo reference and completion. Added staff quality summary and mobile re-audit result submission.
+- R62 admin: login now persists the validated admin role. Branch Admin, Head Office and Platform navigation are separated; content routes are hidden from Branch Admin and platform tenant controls are limited to Platform Admin. Added analytics, product creation/catalogue management and platform organisation/usage pages.
+- Direct contract tests now cover selected-branch tenant validation, branch detail/services, product branch pricing, campaign detail and staff quality summary.
+- Revalidation: backend `19 passed`; mobile strict TypeScript passed; Android Expo export passed with 1,119 modules; admin production build passed with 1,638 modules.
+- Honest remaining status: R60–R62 improve from `BROKEN` to `PARTIALLY_WORKING`, not `VERIFIED_WORKING`. Forgot-password/onboarding, server-persisted notification preferences, complete AZ/EN switching, all admin CRUD families, full branch/staff/camera configuration and browser/device click-through evidence remain open.

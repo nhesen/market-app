@@ -32,6 +32,14 @@ async def ocr_image(file:UploadFile=File(...),user:User=Depends(roles(Role.CUSTO
 def staff_audits(user:User=Depends(roles(Role.STAFF)),db:Session=Depends(get_db)):
     return [task_view(t,db) for t in db.scalars(select(AuditTask).where(AuditTask.assignee_id==user.id).order_by(AuditTask.due_at)).all()]
 
+@router.get("/staff/quality-summary")
+def staff_quality_summary(user:User=Depends(roles(Role.STAFF)),db:Session=Depends(get_db)):
+    tasks=db.scalars(select(AuditTask).where(AuditTask.assignee_id==user.id)).all();task_ids=[task.id for task in tasks]
+    flags=db.scalars(select(AuditQualityFlag).where(AuditQualityFlag.task_id.in_(task_ids))).all() if task_ids else []
+    durations=[(task.completed_at-task.started_at).total_seconds()/60 for task in tasks if task.started_at and task.completed_at]
+    completed=sum(task.status==AuditStatus.COMPLETED for task in tasks);rate=round(completed/max(len(tasks),1)*100,1);score=max(0,min(100,round(70+30*rate/100-len(flags)*8)))
+    return {"score":score,"completion_rate":rate,"average_duration_minutes":round(sum(durations)/len(durations),1) if durations else 0,"quality_flags":[{"id":flag.id,"code":flag.code,"message":flag.message,"severity":flag.severity,"created_at":flag.created_at} for flag in flags],"explanation":"Proses keyfiyyəti göstəricisidir; avtomatik cəza qərarı deyil."}
+
 @router.post("/staff/audits/{task_id}/start")
 def start(task_id:str,user:User=Depends(roles(Role.STAFF)),db:Session=Depends(get_db)):
     task=db.scalar(select(AuditTask).where(AuditTask.id==task_id,AuditTask.assignee_id==user.id));

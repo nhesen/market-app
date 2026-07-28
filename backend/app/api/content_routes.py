@@ -42,6 +42,13 @@ def discounts(user:User=Depends(current_user),db:Session=Depends(get_db)):
         items=db.execute(select(DiscountCampaignProduct,Product).join(Product,Product.id==DiscountCampaignProduct.product_id).where(DiscountCampaignProduct.campaign_id==c.id)).all();out.append({"id":c.id,"title":c.title,"description":c.description,"starts_on":c.starts_on,"ends_on":c.ends_on,"products":[{"id":p.id,"name":p.name,"brand":p.brand,"original_price":p.price,"discount_price":link.discount_price,"branch_id":link.branch_id} for link,p in items]})
     return out
 
+@router.get("/discounts/{campaign_id}")
+def discount_detail(campaign_id:str,user:User=Depends(current_user),db:Session=Depends(get_db)):
+    campaigns=discounts(user,db)
+    item=next((campaign for campaign in campaigns if campaign["id"]==campaign_id),None)
+    if not item:raise HTTPException(404,"Campaign not found")
+    return item
+
 @router.get("/admin/products")
 def admin_products(user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
     stmt=select(Product);stmt=stmt if user.role==Role.PLATFORM_ADMIN else stmt.where(Product.organisation_id==user.organisation_id);return db.scalars(stmt.order_by(Product.name)).all()
@@ -105,4 +112,3 @@ def campaign_product(campaign_id:str,data:CampaignProductIn,user:User=Depends(ro
 @router.get("/admin/logs")
 def logs(user:User=Depends(roles(Role.HEAD_OFFICE_ADMIN,Role.PLATFORM_ADMIN)),db:Session=Depends(get_db)):
     stmt=select(AuditLog);stmt=stmt if user.role==Role.PLATFORM_ADMIN else stmt.where(AuditLog.organisation_id==user.organisation_id);return db.scalars(stmt.order_by(AuditLog.created_at.desc()).limit(200)).all()
-

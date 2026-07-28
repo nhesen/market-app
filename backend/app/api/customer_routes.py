@@ -7,6 +7,7 @@ from app.core.security import create_refresh_token, create_token, current_user, 
 from app.db.session import get_db
 from app.models.customer import AccountDeletionRequest, FavouriteProduct, ManagementSuggestion, Notification
 from app.models.domain import Branch, News, Organisation, Product, Role, User
+from app.models.retail import BranchService,ProductPrice
 from app.schemas.api import TokenOut, UserOut
 from app.schemas.customer import ProfileUpdate, RegisterIn, SuggestionCreate, SuggestionOut, SuggestionUpdate
 
@@ -55,6 +56,20 @@ def barcode(barcode:str,user:User=Depends(current_user),db:Session=Depends(get_d
     item=db.scalar(select(Product).where(Product.barcode==barcode,Product.organisation_id==user.organisation_id))
     if not item: raise HTTPException(404,"Product not found")
     return item
+
+@router.get("/products/{product_id}")
+def product_detail(product_id:str,user:User=Depends(current_user),db:Session=Depends(get_db)):
+    item=db.scalar(select(Product).where(Product.id==product_id,Product.organisation_id==user.organisation_id))
+    if not item:raise HTTPException(404,"Product not found")
+    prices=db.execute(select(ProductPrice,Branch).join(Branch,Branch.id==ProductPrice.branch_id).where(ProductPrice.product_id==item.id,ProductPrice.organisation_id==user.organisation_id)).all()
+    return {"id":item.id,"name":item.name,"brand":item.brand,"barcode":item.barcode,"category":item.category,"price":item.price,"discount_price":item.discount_price,"image_url":item.image_url,"branches":[{"branch_id":price.branch_id,"branch_name":branch.name,"price":price.price,"previous_price":price.previous_price,"available":price.available} for price,branch in prices]}
+
+@router.get("/branches/{branch_id}")
+def branch_detail(branch_id:str,user:User=Depends(current_user),db:Session=Depends(get_db)):
+    branch=db.scalar(select(Branch).where(Branch.id==branch_id,Branch.organisation_id==user.organisation_id))
+    if not branch:raise HTTPException(404,"Branch not found")
+    services=db.scalars(select(BranchService).where(BranchService.branch_id==branch.id,BranchService.organisation_id==user.organisation_id)).all()
+    return {"id":branch.id,"name":branch.name,"address":branch.address,"hours":branch.hours,"distance_km":branch.distance_km,"is_open":branch.is_open,"services":[item.name for item in services]}
 
 @router.get("/favourites/products")
 def favourites(user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):

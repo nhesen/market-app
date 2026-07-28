@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 from app.core.config import settings
@@ -55,14 +55,16 @@ def branches(user: User = Depends(current_user), db: Session = Depends(get_db)):
     return db.scalars(select(Branch).where(Branch.organisation_id == user.organisation_id)).all()
 
 @router.get("/home")
-def home(user: User = Depends(roles(Role.CUSTOMER)), db: Session = Depends(get_db)):
+def home(branch_id:str|None=Query(None),user: User = Depends(roles(Role.CUSTOMER)), db: Session = Depends(get_db)):
     org = user.organisation_id
     news = db.scalars(select(News).where(News.organisation_id == org).order_by(News.published_at.desc())).all()
     products = db.scalars(select(Product).where(Product.organisation_id == org)).all()
     branches_data = db.scalars(select(Branch).where(Branch.organisation_id == org)).all()
+    if branch_id and not any(branch.id==branch_id for branch in branches_data):raise HTTPException(404,"Branch not found in your organisation")
     loyalty = db.scalar(select(LoyaltyCard).where(LoyaltyCard.user_id == user.id))
     reports = db.scalars(select(CustomerReport).where(CustomerReport.customer_id == user.id).order_by(CustomerReport.created_at.desc()).limit(4)).all()
-    return {"user": user, "news": news, "products": products, "discounts": [p for p in products if p.discount_price], "branches": branches_data, "loyalty": loyalty, "reports": [report_view(r) for r in reports]}
+    selected=next((branch for branch in branches_data if branch.id==branch_id),branches_data[0] if branches_data else None)
+    return {"user": user,"selected_branch":selected,"news": news, "products": products, "discounts": [p for p in products if p.discount_price], "branches": branches_data, "loyalty": loyalty, "reports": [report_view(r) for r in reports]}
 
 @router.post("/reports/ai-review")
 def ai_review(data:ReportAIReviewIn,user:User=Depends(roles(Role.CUSTOMER))):
