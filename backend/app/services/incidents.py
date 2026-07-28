@@ -3,12 +3,20 @@ from sqlalchemy.orm import Session
 from app.models.domain import CustomerReport, Incident, IncidentStatus, IncidentStatusHistory, User
 from app.schemas.api import ReportCreate
 from app.models.retail import FileAsset,IncidentAttachment
+from sqlalchemy import select
 
 def serialize_history(incident: Incident) -> list[dict]:
     return [{"status": h.status, "note": h.note, "created_at": h.created_at} for h in incident.history]
 
-def report_view(report: CustomerReport) -> dict:
-    return {"id": report.id, "tracking_number": report.tracking_number, "branch_id": report.branch_id, "category": report.category, "title": report.title, "description": report.description, "status": report.status, "created_at": report.created_at, "history": serialize_history(report.incident)}
+def report_view(report: CustomerReport, db: Session | None = None) -> dict:
+    history=serialize_history(report.incident)
+    media=[]
+    if db and report.incident:
+        rows=db.execute(select(IncidentAttachment,FileAsset).join(FileAsset,FileAsset.id==IncidentAttachment.file_asset_id).where(IncidentAttachment.incident_id==report.incident.id,IncidentAttachment.customer_visible==True)).all()
+        media=[{"id":asset.id,"name":asset.original_name,"mime_type":asset.mime_type,"url":f"/uploads/{asset.storage_key}"} for _,asset in rows]
+    rejected=next((item["note"] for item in reversed(history) if str(item["status"].value if hasattr(item["status"],"value") else item["status"])=="REJECTED"),None)
+    resolved=next((item["note"] for item in reversed(history) if str(item["status"].value if hasattr(item["status"],"value") else item["status"]) in ("RESOLVED","AUTO_RESOLVED")),None)
+    return {"id": report.id, "tracking_number": report.tracking_number, "branch_id": report.branch_id, "category": report.category, "title": report.title, "description": report.description, "status": report.status, "created_at": report.created_at, "history": history,"media":media,"rejection_reason":rejected,"resolution_note":resolved}
 
 def incident_view(incident: Incident) -> dict:
     return {"id": incident.id, "report_id": incident.report_id, "branch_id": incident.branch_id, "source": incident.source, "category": incident.category, "title": incident.title, "description": incident.description, "priority": incident.priority, "status": incident.status, "department": incident.department, "created_at": incident.created_at, "history": serialize_history(incident)}

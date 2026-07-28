@@ -23,7 +23,7 @@ def log(db:Session,user:User,action:str,kind:str,entity_id:str):db.add(AuditLog(
 
 @router.post("/uploads",status_code=201)
 async def upload(file:UploadFile=File(...),user:User=Depends(current_user),db:Session=Depends(get_db)):
-    key,size,mime=await storage.save(file);item=FileAsset(organisation_id=user.organisation_id,owner_id=user.id,storage_key=key,original_name=file.filename or "upload",mime_type=mime,size=size);db.add(item);db.commit();db.refresh(item);return {"id":item.id,"name":item.original_name,"mime_type":mime,"size":size}
+    key,size,mime=await storage.save(file);item=FileAsset(organisation_id=user.organisation_id,owner_id=user.id,storage_key=key,original_name=file.filename or "upload",mime_type=mime,size=size);db.add(item);db.commit();db.refresh(item);return {"id":item.id,"name":item.original_name,"mime_type":mime,"size":size,"url":f"/uploads/{key}"}
 
 @router.get("/loyalty/cards")
 def cards(user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
@@ -39,7 +39,7 @@ def transactions(card_id:str,user:User=Depends(roles(Role.CUSTOMER)),db:Session=
 def discounts(user:User=Depends(current_user),db:Session=Depends(get_db)):
     campaigns=db.scalars(select(DiscountCampaign).where(DiscountCampaign.organisation_id==user.organisation_id,DiscountCampaign.published==True)).all();out=[]
     for c in campaigns:
-        items=db.execute(select(DiscountCampaignProduct,Product).join(Product,Product.id==DiscountCampaignProduct.product_id).where(DiscountCampaignProduct.campaign_id==c.id)).all();out.append({"id":c.id,"title":c.title,"description":c.description,"starts_on":c.starts_on,"ends_on":c.ends_on,"products":[{"id":p.id,"name":p.name,"brand":p.brand,"original_price":p.price,"discount_price":link.discount_price,"branch_id":link.branch_id} for link,p in items]})
+        items=db.execute(select(DiscountCampaignProduct,Product,Branch).join(Product,Product.id==DiscountCampaignProduct.product_id).join(Branch,Branch.id==DiscountCampaignProduct.branch_id).where(DiscountCampaignProduct.campaign_id==c.id)).all();branch_map={branch.id:branch.name for _,_,branch in items};out.append({"id":c.id,"title":c.title,"description":c.description,"starts_on":c.starts_on,"ends_on":c.ends_on,"products":[{"id":p.id,"name":p.name,"brand":p.brand,"image_url":p.image_url,"original_price":p.price,"discount_price":link.discount_price,"branch_id":link.branch_id,"branch_name":branch.name} for link,p,branch in items],"branches":[{"id":key,"name":value} for key,value in branch_map.items()]})
     return out
 
 @router.get("/discounts/{campaign_id}")

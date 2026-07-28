@@ -46,3 +46,11 @@ class AccountDeletionRequest(Base):
     user_id:Mapped[str]=mapped_column(ForeignKey("users.id"),index=True)
     reason:Mapped[str|None]=mapped_column(Text,nullable=True)
     created_at:Mapped[datetime]=mapped_column(DateTime,default=utc_now)
+
+class FavouriteCampaign(Base):
+    __tablename__="favourite_campaigns"; __table_args__=(UniqueConstraint("user_id","campaign_id"),)
+    id:Mapped[str]=mapped_column(String(36),primary_key=True,default=uid)
+    organisation_id:Mapped[str]=mapped_column(ForeignKey("organisations.id"),index=True)
+    user_id:Mapped[str]=mapped_column(ForeignKey("users.id"),index=True)
+    campaign_id:Mapped[str]=mapped_column(ForeignKey("discount_campaigns.id"),index=True)
+    created_at:Mapped[datetime]=mapped_column(DateTime,default=utc_now)

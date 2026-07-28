@@ -16,6 +16,10 @@ class UserOut(BaseModel):
     role: Role
     organisation_id: str | None
     branch_id: str | None
+    phone: str | None = None
+    language: str = "az"
+    profile_image_url: str | None = None
+    preferred_branch_id: str | None = None
 
 
 class TokenOut(BaseModel):
@@ -50,6 +54,9 @@ class ReportOut(BaseModel):
     status: IncidentStatus
     created_at: datetime
     history: list[HistoryOut]
+    media: list[dict] = Field(default_factory=list)
+    rejection_reason: str | None = None
+    resolution_note: str | None = None
 
 
 class IncidentOut(BaseModel):

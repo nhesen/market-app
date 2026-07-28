@@ -1,6 +1,7 @@
 from fastapi import FastAPI,Request
 import logging,time
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from app.api.routes import router
 from app.api.customer_routes import router as customer_router
 from app.api.audit_routes import router as audit_router
@@ -29,6 +30,7 @@ app.include_router(audit_router)
 app.include_router(platform_router)
 app.include_router(content_router)
 app.include_router(vision_router)
+app.mount("/uploads",StaticFiles(directory=settings.upload_dir),name="uploads")
 
 @app.get("/health")
 def health(): return {"status": "ok", "service": "martiq-api"}

@@ -5,6 +5,7 @@ __pycache__/
 *.db
 node_modules/
 dist/
+dist-android*/
 *.tsbuildinfo
 admin/vite.config.js
 admin/vite.config.d.ts

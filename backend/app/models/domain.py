@@ -56,6 +56,9 @@ class User(Base):
     full_name: Mapped[str] = mapped_column(String(160))
     phone: Mapped[str | None] = mapped_column(String(30), nullable=True)
     language: Mapped[str] = mapped_column(String(5), default="az")
+    profile_image_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    preferred_branch_id: Mapped[str | None] = mapped_column(ForeignKey("branches.id"), nullable=True)
+    preferences_json: Mapped[str] = mapped_column(Text, default="{}")
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[Role] = mapped_column(Enum(Role))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -92,9 +95,12 @@ class LoyaltyCard(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     organisation_id: Mapped[str] = mapped_column(ForeignKey("organisations.id"), index=True)
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    label: Mapped[str] = mapped_column(String(80), default="Bonus kartı")
+    card_number: Mapped[str] = mapped_column(String(24), default="9900000000000000")
     balance: Mapped[int] = mapped_column(Integer, default=0)
     monthly_earned: Mapped[int] = mapped_column(Integer, default=0)
     expiring: Mapped[int] = mapped_column(Integer, default=0)
+    expiring_on: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class CustomerReport(Base):

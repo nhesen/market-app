@@ -63,8 +63,10 @@ def home(branch_id:str|None=Query(None),user: User = Depends(roles(Role.CUSTOMER
     if branch_id and not any(branch.id==branch_id for branch in branches_data):raise HTTPException(404,"Branch not found in your organisation")
     loyalty = db.scalar(select(LoyaltyCard).where(LoyaltyCard.user_id == user.id))
     reports = db.scalars(select(CustomerReport).where(CustomerReport.customer_id == user.id).order_by(CustomerReport.created_at.desc()).limit(4)).all()
-    selected=next((branch for branch in branches_data if branch.id==branch_id),branches_data[0] if branches_data else None)
-    return {"user": user,"selected_branch":selected,"news": news, "products": products, "discounts": [p for p in products if p.discount_price], "branches": branches_data, "loyalty": loyalty, "reports": [report_view(r) for r in reports]}
+    effective_branch=branch_id or user.preferred_branch_id
+    selected=next((branch for branch in branches_data if branch.id==effective_branch),branches_data[0] if branches_data else None)
+    organisation=db.get(Organisation,org)
+    return {"user": user,"organisation":organisation,"selected_branch":selected,"news": news, "products": products, "discounts": [p for p in products if p.discount_price], "branches": branches_data, "loyalty": loyalty, "reports": [report_view(r,db) for r in reports]}
 
 @router.post("/reports/ai-review")
 def ai_review(data:ReportAIReviewIn,user:User=Depends(roles(Role.CUSTOMER))):
@@ -81,17 +83,17 @@ def ai_review(data:ReportAIReviewIn,user:User=Depends(roles(Role.CUSTOMER))):
 def create_report(data: ReportCreate, user: User = Depends(roles(Role.CUSTOMER)), db: Session = Depends(get_db)):
     branch = db.scalar(select(Branch).where(Branch.id == data.branch_id, Branch.organisation_id == user.organisation_id))
     if not branch: raise HTTPException(status_code=404, detail="Branch not found in your organisation")
-    return report_view(create_customer_report(db, user, data))
+    return report_view(create_customer_report(db, user, data),db)
 
 @router.get("/reports", response_model=list[ReportOut])
 def own_reports(user: User = Depends(roles(Role.CUSTOMER)), db: Session = Depends(get_db)):
-    return [report_view(r) for r in db.scalars(select(CustomerReport).where(CustomerReport.customer_id == user.id).order_by(CustomerReport.created_at.desc())).all()]
+    return [report_view(r,db) for r in db.scalars(select(CustomerReport).where(CustomerReport.customer_id == user.id).order_by(CustomerReport.created_at.desc())).all()]
 
 @router.get("/reports/{report_id}", response_model=ReportOut)
 def own_report(report_id: str, user: User = Depends(roles(Role.CUSTOMER)), db: Session = Depends(get_db)):
     record = db.scalar(select(CustomerReport).where(CustomerReport.id == report_id, CustomerReport.customer_id == user.id))
     if not record: raise HTTPException(status_code=404, detail="Report not found")
-    return report_view(record)
+    return report_view(record,db)
 
 ADMIN_ROLES = (Role.BRANCH_ADMIN, Role.HEAD_OFFICE_ADMIN, Role.PLATFORM_ADMIN)
 
