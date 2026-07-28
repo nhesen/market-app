@@ -1,4 +1,4 @@
-from datetime import datetime
+from app.core.time import utc_now
 from pathlib import Path
 from time import perf_counter
 import cv2
@@ -25,6 +25,6 @@ class MP4Pipeline:
             if not ok:
                 if loop:cap.set(cv2.CAP_PROP_POS_FRAMES,0);continue
                 break
-            last_score=self.score(frame);hazard=last_score>=self.rule.threshold;event=self.sim.observe(hazard);processed+=1;self.camera.last_frame_at=datetime.utcnow()
+            last_score=self.score(frame);hazard=last_score>=self.rule.threshold;event=self.sim.observe(hazard);processed+=1;self.camera.last_frame_at=utc_now()
             if event:self.last_event_id=event.id
         elapsed=max(perf_counter()-started,.001);self.camera.fps_estimate=processed/elapsed;self.camera.last_error=None;self.db.commit();cap.release();return {"status":"ok","processed_frames":processed,"fps":round(self.camera.fps_estimate,2),"last_score":round(last_score,4),"event_id":self.last_event_id,"mode":"simulated live MP4"}

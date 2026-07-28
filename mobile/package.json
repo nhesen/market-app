@@ -2,7 +2,8 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint app components services constants locales --max-warnings 0"
   },
   "dependencies": {
     "@expo/vector-icons": "15.0.3",
@@ -26,8 +27,12 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@types/react": "~19.1.10",
-    "typescript": "^5.7.2"
+    "eslint": "^9.39.5",
+    "globals": "^17.8.0",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.65.0"
   },
   "private": true
 }

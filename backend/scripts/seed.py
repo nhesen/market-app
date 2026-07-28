@@ -1,4 +1,4 @@
-from datetime import date,datetime,timedelta
+from datetime import date,timedelta
 from sqlalchemy import select
 from app.core.security import hash_password
 from app.db.session import Base,SessionLocal,engine
@@ -6,6 +6,7 @@ from app.models.audit import AuditTask
 from app.models.customer import Notification
 from app.models.domain import Branch,CustomerReport,Incident,IncidentStatus,IncidentStatusHistory,LoyaltyCard,News,Organisation,Product,Role,User
 from app.models.retail import BranchService,DiscountCampaign,DiscountCampaignProduct,LoyaltyTransaction,OrganisationModule,ProductCategory,ProductPrice
+from app.core.time import utc_now
 
 PASSWORD="Demo123!"
 CATALOG=[
@@ -38,7 +39,7 @@ def run():
         db.add_all([News(organisation_id=nova.id,title_az="Yay iş saatları yeniləndi",title_en="Summer hours updated",summary_az="Nərimanov filialı artıq hər gün saat 23:00-dək açıqdır.",summary_en="The Narimanov branch is now open until 23:00 every day."),News(organisation_id=nova.id,title_az="Yeni təkrar emal nöqtəsi",title_en="New recycling point",summary_az="Şüşə və plastik üçün çeşidləmə nöqtəsi istifadəyə verildi.",summary_en="A sorting point for glass and plastic is now available."),News(organisation_id=nova.id,branch_id=branches[1].id,title_az="Yasamal filialında texniki xidmət",title_en="Maintenance at Yasamal",summary_az="Bazar günü bəzi kassalarda qısa texniki fasilə olacaq.",summary_en="Some checkouts will have a short maintenance window on Sunday.")])
         card=LoyaltyCard(organisation_id=nova.id,user_id=users[0].id,balance=1280,monthly_earned=240,expiring=90);db.add(card);db.flush();db.add_all([LoyaltyTransaction(organisation_id=nova.id,card_id=card.id,amount=120,description="Nərimanov filialında alış"),LoyaltyTransaction(organisation_id=nova.id,card_id=card.id,amount=-50,description="Demo bonus təklifi")])
         campaign=DiscountCampaign(organisation_id=nova.id,title="Həftənin seçilmişləri",description="Seçilmiş gündəlik məhsullarda filial endirimləri",starts_on=date.today()-timedelta(days=2),ends_on=date.today()+timedelta(days=10));db.add(campaign);db.flush();db.add_all([DiscountCampaignProduct(organisation_id=nova.id,campaign_id=campaign.id,product_id=p.id,branch_id=branches[0].id,discount_price=round(p.price*.8,2)) for p in products[:8]])
-        db.add_all([OrganisationModule(organisation_id=nova.id,module=x,enabled=True) for x in ("REPORTS","AUDITS","VISION","LOYALTY")]);db.add(Notification(organisation_id=nova.id,user_id=users[0].id,kind="DISCOUNT",title="Yeni endirim",body="Həftənin seçilmiş məhsullarına baxın."));db.add(AuditTask(organisation_id=nova.id,branch_id=branches[0].id,assignee_id=users[3].id,title="Süd məhsullarının tarix auditi",instructions="İki fərqli süd məhsulunun barkodunu və son istifadə tarixini yoxlayın.",required_count=2,due_at=datetime.utcnow()+timedelta(hours=6),priority="HIGH"))
+        db.add_all([OrganisationModule(organisation_id=nova.id,module=x,enabled=True) for x in ("REPORTS","AUDITS","VISION","LOYALTY")]);db.add(Notification(organisation_id=nova.id,user_id=users[0].id,kind="DISCOUNT",title="Yeni endirim",body="Həftənin seçilmiş məhsullarına baxın."));db.add(AuditTask(organisation_id=nova.id,branch_id=branches[0].id,assignee_id=users[3].id,title="Süd məhsullarının tarix auditi",instructions="İki fərqli süd məhsulunun barkodunu və son istifadə tarixini yoxlayın.",required_count=2,due_at=utc_now()+timedelta(hours=6),priority="HIGH"))
         report=CustomerReport(tracking_number="MQ-DEMO1024",organisation_id=nova.id,branch_id=branches[0].id,customer_id=users[0].id,category="PRICE_MISMATCH",title="Rəfdə qiymət fərqlidir",description="Südün rəf etiketi tətbiqdəki cari qiymətdən fərqlənir.");incident=Incident(organisation_id=nova.id,branch_id=branches[0].id,report=report,source="CUSTOMER",category=report.category,title=report.title,description=report.description);incident.history.append(IncidentStatusHistory(status=IncidentStatus.VERIFICATION_REQUIRED,note="Müştəri siqnalı qəbul edildi; filial təsdiqi gözlənilir.",actor_id=users[0].id));db.add(incident);db.commit();print("Seeded 2 organisations, 4 branches and 24 products")
 
 if __name__=="__main__":run()

@@ -1,5 +1,6 @@
 import io
-from datetime import datetime,timedelta
+from datetime import timedelta
+from app.core.time import utc_now
 from sqlalchemy import select
 from app.core.security import hash_password
 from app.db.session import SessionLocal
@@ -37,10 +38,9 @@ def test_reaudit_mismatch_creates_quality_flag(client,admin_token):
     with SessionLocal() as db:
         branch=db.scalar(select(Branch).where(Branch.name.contains("Nərimanov")));product=db.scalar(select(Product).where(Product.organisation_id==branch.organisation_id));original=db.scalar(select(User).where(User.email=="staff@demo.az"))
         reviewer=User(organisation_id=branch.organisation_id,branch_id=branch.id,email="reviewer@demo.az",full_name="Re-audit Reviewer",role=Role.STAFF,password_hash=hash_password("Demo123!"));db.add(reviewer);db.flush()
-        task=AuditTask(organisation_id=branch.organisation_id,branch_id=branch.id,assignee_id=original.id,title="Completed source audit",instructions="Re-audit source",required_count=1,status=AuditStatus.COMPLETED,due_at=datetime.utcnow(),started_at=datetime.utcnow()-timedelta(minutes=5),completed_at=datetime.utcnow());db.add(task);db.flush();db.add(AuditResultItem(task_id=task.id,product_id=product.id,barcode=product.barcode,confirmed_date="01.01.2025",condition=Condition.EXPIRED));db.commit();task_id=task.id;reviewer_id=reviewer.id
+        now=utc_now();task=AuditTask(organisation_id=branch.organisation_id,branch_id=branch.id,assignee_id=original.id,title="Completed source audit",instructions="Re-audit source",required_count=1,status=AuditStatus.COMPLETED,due_at=now,started_at=now-timedelta(minutes=5),completed_at=now);db.add(task);db.flush();db.add(AuditResultItem(task_id=task.id,product_id=product.id,barcode=product.barcode,confirmed_date="01.01.2025",condition=Condition.EXPIRED));db.commit();task_id=task.id;reviewer_id=reviewer.id
     made=client.post(f"/api/v1/admin/audits/{task_id}/re-audit?assignee_id={reviewer_id}",headers=auth(admin_token));assert made.status_code==201
     reviewer_token=token(client,"reviewer@demo.az")
     completed=client.post(f'/api/v1/staff/re-audits/{made.json()["id"]}/complete',headers=auth(reviewer_token),json={"condition":"NORMAL"})
     assert completed.status_code==200 and completed.json()["consistent"] is False
     flags=client.get("/api/v1/admin/audit-quality-flags",headers=auth(admin_token)).json();assert any(x["code"]=="RE_AUDIT_MISMATCH" for x in flags)
-

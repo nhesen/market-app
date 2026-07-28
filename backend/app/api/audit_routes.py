@@ -1,4 +1,3 @@
-from datetime import datetime
 from fastapi import APIRouter,Depends,File,HTTPException,UploadFile
 from pydantic import BaseModel,Field
 from sqlalchemy import func,select
@@ -9,6 +8,7 @@ from app.db.session import get_db
 from app.models.audit import AuditQualityFlag,AuditResultItem,AuditStatus,AuditTask,Condition,ReAudit
 from app.models.domain import Incident,IncidentStatus,IncidentStatusHistory,Product,Role,User
 from app.services.ocr import process_demo_text,process_image_bytes
+from app.core.time import as_utc, utc_now
 
 router=APIRouter(prefix="/api/v1")
 class ItemIn(BaseModel):
@@ -36,7 +36,7 @@ def staff_audits(user:User=Depends(roles(Role.STAFF)),db:Session=Depends(get_db)
 def staff_quality_summary(user:User=Depends(roles(Role.STAFF)),db:Session=Depends(get_db)):
     tasks=db.scalars(select(AuditTask).where(AuditTask.assignee_id==user.id)).all();task_ids=[task.id for task in tasks]
     flags=db.scalars(select(AuditQualityFlag).where(AuditQualityFlag.task_id.in_(task_ids))).all() if task_ids else []
-    durations=[(task.completed_at-task.started_at).total_seconds()/60 for task in tasks if task.started_at and task.completed_at]
+    durations=[(as_utc(task.completed_at)-as_utc(task.started_at)).total_seconds()/60 for task in tasks if task.started_at and task.completed_at]
     completed=sum(task.status==AuditStatus.COMPLETED for task in tasks);rate=round(completed/max(len(tasks),1)*100,1);score=max(0,min(100,round(70+30*rate/100-len(flags)*8)))
     return {"score":score,"completion_rate":rate,"average_duration_minutes":round(sum(durations)/len(durations),1) if durations else 0,"quality_flags":[{"id":flag.id,"code":flag.code,"message":flag.message,"severity":flag.severity,"created_at":flag.created_at} for flag in flags],"explanation":"Proses keyfiyyəti göstəricisidir; avtomatik cəza qərarı deyil."}
 
@@ -44,7 +44,7 @@ def staff_quality_summary(user:User=Depends(roles(Role.STAFF)),db:Session=Depend
 def start(task_id:str,user:User=Depends(roles(Role.STAFF)),db:Session=Depends(get_db)):
     task=db.scalar(select(AuditTask).where(AuditTask.id==task_id,AuditTask.assignee_id==user.id));
     if not task: raise HTTPException(404,"Audit not found")
-    if task.status==AuditStatus.ASSIGNED: task.status=AuditStatus.IN_PROGRESS;task.started_at=datetime.utcnow();db.commit()
+    if task.status==AuditStatus.ASSIGNED: task.status=AuditStatus.IN_PROGRESS;task.started_at=utc_now();db.commit()
     return task_view(task,db)
 
 @router.post("/staff/audits/{task_id}/items",status_code=201)
@@ -65,8 +65,8 @@ def complete(task_id:str,user:User=Depends(roles(Role.STAFF)),db:Session=Depends
     if not task: raise HTTPException(404,"Active audit not found")
     items=db.scalars(select(AuditResultItem).where(AuditResultItem.task_id==task.id)).all()
     if len(items)<task.required_count: raise HTTPException(422,"Required product count is incomplete")
-    task.status=AuditStatus.COMPLETED;task.completed_at=datetime.utcnow()
-    if task.started_at and (task.completed_at-task.started_at).total_seconds()<60: db.add(AuditQualityFlag(organisation_id=task.organisation_id,branch_id=task.branch_id,task_id=task.id,code="SHORT_DURATION",message="Audit gözləniləndən çox qısa müddətdə tamamlandı."))
+    task.status=AuditStatus.COMPLETED;task.completed_at=utc_now()
+    if task.started_at and (as_utc(task.completed_at)-as_utc(task.started_at)).total_seconds()<60: db.add(AuditQualityFlag(organisation_id=task.organisation_id,branch_id=task.branch_id,task_id=task.id,code="SHORT_DURATION",message="Audit gözləniləndən çox qısa müddətdə tamamlandı."))
     for item in items:
         if item.condition!=Condition.NORMAL:
             product=db.get(Product,item.product_id);incident=Incident(organisation_id=task.organisation_id,branch_id=task.branch_id,source="STAFF_AUDIT",category="PRODUCT",title=f"Audit tapıntısı: {product.name}",description=item.note or item.condition.value,priority="HIGH" if item.condition==Condition.EXPIRED else "MEDIUM",status=IncidentStatus.VERIFIED);incident.history.append(IncidentStatusHistory(status=IncidentStatus.VERIFIED,note="Əməkdaş auditi ilə təsdiqlənmiş tapıntı.",actor_id=user.id));db.add(incident)
@@ -96,7 +96,7 @@ def staff_reaudits(user:User=Depends(roles(Role.STAFF)),db:Session=Depends(get_d
 def complete_reaudit(item_id:str,data:ReAuditIn,user:User=Depends(roles(Role.STAFF)),db:Session=Depends(get_db)):
     item=db.scalar(select(ReAudit).where(ReAudit.id==item_id,ReAudit.assignee_id==user.id,ReAudit.status=="ASSIGNED"))
     if not item:raise HTTPException(404,"Re-audit not found")
-    item.re_audit_condition=data.condition.value;item.consistent=item.original_condition==data.condition.value;item.status="COMPLETED";item.completed_at=datetime.utcnow()
+    item.re_audit_condition=data.condition.value;item.consistent=item.original_condition==data.condition.value;item.status="COMPLETED";item.completed_at=utc_now()
     if not item.consistent:db.add(AuditQualityFlag(organisation_id=item.organisation_id,branch_id=item.branch_id,task_id=item.original_task_id,code="RE_AUDIT_MISMATCH",message="Təkrar audit nəticəsi ilkin nəticə ilə uyğun gəlmədi."))
     db.commit();return item
 

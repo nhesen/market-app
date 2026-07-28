@@ -6,32 +6,85 @@ MARTIQ is a retail operations platform that combines camera incidents, employee 
 
 The repository contains a FastAPI API, Expo mobile client, React/Vite admin panel, PostgreSQL configuration, and a deterministic vision-event simulator. The first end-to-end slice is implemented: a customer submits a report, it creates a unified incident, a branch admin verifies and changes status, and the customer reads the same status timeline.
 
-## Start locally
+## Verified local startup (PowerShell)
 
-Prerequisites: Docker, Python 3.11+, Node 20+.
+Prerequisites: Docker Desktop, Python 3.11+, and Node 20+. Start Docker Desktop first. The commands below use the real PostgreSQL service published on port 5432.
 
-```bash
-cp .env.example .env
+```powershell
+Copy-Item .env.example .env
 docker compose up -d db
-python -m pip install -r backend/requirements.txt
-cd backend && python -m scripts.seed && uvicorn app.main:app --reload
-cd admin && npm install && npm run dev
-cd mobile && npm install && npx expo start
+
+cd backend
+python -m pip install -r requirements.txt
+$env:DATABASE_URL='postgresql+psycopg://martiq:martiq@localhost:5432/martiq'
+python -m alembic upgrade head
+python -m scripts.seed
+python -m scripts.seed
+python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+In separate PowerShell terminals:
+
+```powershell
+cd admin
+npm install
+npm run dev -- --host 0.0.0.0
+```
+
+```powershell
+cd mobile
+npm install --legacy-peer-deps
+npx expo start
 ```
 
 Admin: `http://localhost:5173`; API docs: `http://localhost:8000/docs`. For a physical phone set `EXPO_PUBLIC_API_URL` to the computer's LAN address.
 
 Demo credentials (password `Demo123!`): `customer@demo.az`, `branch@demo.az`, `head@demo.az`, `staff@demo.az`, `platform@martiq.az`.
 
-## Validation
+## Clean PostgreSQL verification
 
-```bash
-cd backend && pytest
-cd admin && npm run build
-cd mobile && npm run typecheck
+Warning: `docker compose down --volumes` deletes the local MARTIQ PostgreSQL volume. Use it only when a clean QA database is intended.
+
+```powershell
+docker compose down --volumes --remove-orphans
+docker compose up -d db
+cd backend
+$env:DATABASE_URL='postgresql+psycopg://martiq:martiq@localhost:5432/martiq'
+python -m alembic upgrade head
+python -m alembic current
+python -m scripts.seed
+python -m scripts.seed
+python -m alembic check
 ```
+
+The verified clean run reached Alembic revision `0002 (head)`. The first seed printed `Seeded 2 organisations, 4 branches and 24 products`; the second printed `Demo data already exists`.
+
+## Quality gates
+
+Run each block from the repository root in PowerShell:
+
+```powershell
+cd backend
+python -m pytest -q
+$env:DATABASE_URL='postgresql+psycopg://martiq:martiq@localhost:5432/martiq'
+python -m alembic check
+```
+
+```powershell
+cd admin
+npm run lint
+npm run build
+```
+
+```powershell
+cd mobile
+npm run lint
+npm run typecheck
+npx expo-doctor
+```
+
+The last verified results were: backend `19 passed`; Alembic `No new upgrade operations detected`; admin lint and production build passed; mobile lint and strict TypeScript passed; Expo Doctor passed `18/18` checks.
 
 ## Honest limitations
 
 Price, loyalty, branch distance, and camera inputs are seeded demo data. The MP4 pipeline is a simulated continuous source and does not claim universal scene understanding. OCR is optional and dates require confirmation. Customer signals require branch verification. Smart Store Score is an explainable internal MVP metric, not an industry standard. No facial recognition or automatic accusation exists. See [product scope](docs/product-scope.md) and [architecture](docs/architecture.md).
-

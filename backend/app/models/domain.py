@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.session import Base
+from app.core.time import utc_now
 
 
 def uid() -> str:
@@ -32,7 +33,7 @@ class Organisation(Base):
     __tablename__ = "organisations"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     name: Mapped[str] = mapped_column(String(160), unique=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
 
 class Branch(Base):
@@ -70,7 +71,7 @@ class News(Base):
     summary_az: Mapped[str] = mapped_column(Text)
     summary_en: Mapped[str] = mapped_column(Text)
     image_url: Mapped[str] = mapped_column(String(255), default="/assets/news-market.svg")
-    published_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    published_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
 
 class Product(Base):
@@ -107,7 +108,7 @@ class CustomerReport(Base):
     title: Mapped[str] = mapped_column(String(180))
     description: Mapped[str] = mapped_column(Text)
     status: Mapped[IncidentStatus] = mapped_column(Enum(IncidentStatus), default=IncidentStatus.VERIFICATION_REQUIRED)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     incident: Mapped["Incident"] = relationship(back_populates="report", uselist=False)
 
 
@@ -124,8 +125,8 @@ class Incident(Base):
     priority: Mapped[str] = mapped_column(String(24), default="MEDIUM")
     status: Mapped[IncidentStatus] = mapped_column(Enum(IncidentStatus), default=IncidentStatus.VERIFICATION_REQUIRED)
     department: Mapped[str | None] = mapped_column(String(120), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
     report: Mapped[CustomerReport | None] = relationship(back_populates="incident")
     history: Mapped[list["IncidentStatusHistory"]] = relationship(cascade="all, delete-orphan", order_by="IncidentStatusHistory.created_at")
 
@@ -137,7 +138,7 @@ class IncidentStatusHistory(Base):
     status: Mapped[IncidentStatus] = mapped_column(Enum(IncidentStatus))
     note: Mapped[str] = mapped_column(String(255))
     actor_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
 
 class CameraEvent(Base):

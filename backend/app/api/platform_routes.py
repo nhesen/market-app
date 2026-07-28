@@ -6,6 +6,7 @@ from app.core.security import hash_password,roles
 from app.db.session import get_db
 from app.models.audit import AuditQualityFlag,AuditStatus,AuditTask
 from app.models.domain import Branch,Incident,IncidentStatus,Organisation,Role,User
+from app.core.time import utc_now
 
 router=APIRouter(prefix="/api/v1")
 class OrganisationIn(BaseModel): name:str=Field(min_length=2,max_length=160)
@@ -22,7 +23,7 @@ def score_data(rows:list[Incident],overdue:int,valid_audits:int):
 def branch_score(branch_id:str,user:User=Depends(roles(Role.BRANCH_ADMIN,Role.HEAD_OFFICE_ADMIN,Role.PLATFORM_ADMIN)),db:Session=Depends(get_db)):
     branch=db.get(Branch,branch_id);allowed=branch and (user.role==Role.PLATFORM_ADMIN or branch.organisation_id==user.organisation_id) and (user.role!=Role.BRANCH_ADMIN or branch.id==user.branch_id)
     if not allowed: raise HTTPException(404,"Branch not found")
-    rows=db.scalars(select(Incident).where(Incident.branch_id==branch.id)).all();now=__import__('datetime').datetime.utcnow();overdue=db.scalar(select(func.count(AuditTask.id)).where(AuditTask.branch_id==branch.id,AuditTask.due_at<now,AuditTask.status!=AuditStatus.COMPLETED)) or 0;valid=db.scalar(select(func.count(AuditTask.id)).where(AuditTask.branch_id==branch.id,AuditTask.status==AuditStatus.COMPLETED)) or 0
+    rows=db.scalars(select(Incident).where(Incident.branch_id==branch.id)).all();now=utc_now();overdue=db.scalar(select(func.count(AuditTask.id)).where(AuditTask.branch_id==branch.id,AuditTask.due_at<now,AuditTask.status!=AuditStatus.COMPLETED)) or 0;valid=db.scalar(select(func.count(AuditTask.id)).where(AuditTask.branch_id==branch.id,AuditTask.status==AuditStatus.COMPLETED)) or 0
     return {"branch_id":branch.id,**score_data(rows,overdue,valid),"calculated_at":now}
 
 @router.get("/platform/organisations")
@@ -47,4 +48,3 @@ def create_admin(data:AdminIn,user:User=Depends(roles(Role.PLATFORM_ADMIN)),db:S
 @router.get("/platform/usage")
 def usage(user:User=Depends(roles(Role.PLATFORM_ADMIN)),db:Session=Depends(get_db)):
     return {"organisations":db.scalar(select(func.count(Organisation.id))),"branches":db.scalar(select(func.count(Branch.id))),"users":db.scalar(select(func.count(User.id))),"incidents":db.scalar(select(func.count(Incident.id)))}
-
