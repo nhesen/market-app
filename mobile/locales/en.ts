@@ -1,0 +1,1 @@
+export default{home:'Home',prices:'Prices',report:'Report',cards:'Cards',profile:'Profile',news:'News',quick:'Quick actions',discounts:'Featured discounts',activeReports:'Active reports',branches:'Nearby branches'};

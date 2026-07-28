@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "MARTIQ",
+    "slug": "martiq",
+    "scheme": "martiq",
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-asset"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "ios": {
+      "bundleIdentifier": "az.martiq.app"
+    },
+    "android": {
+      "package": "az.martiq.app"
+    }
+  }
+}

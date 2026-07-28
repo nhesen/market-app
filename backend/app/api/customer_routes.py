@@ -1,0 +1,115 @@
+import secrets
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import delete, or_, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+from app.core.security import create_refresh_token, create_token, current_user, hash_password, roles
+from app.db.session import get_db
+from app.models.customer import AccountDeletionRequest, FavouriteProduct, ManagementSuggestion, Notification
+from app.models.domain import Branch, News, Organisation, Product, Role, User
+from app.schemas.api import TokenOut, UserOut
+from app.schemas.customer import ProfileUpdate, RegisterIn, SuggestionCreate, SuggestionOut, SuggestionUpdate
+
+router=APIRouter(prefix="/api/v1")
+
+@router.get("/organisations")
+def organisations(db:Session=Depends(get_db)):
+    return db.scalars(select(Organisation).order_by(Organisation.name)).all()
+
+@router.post("/auth/register",response_model=TokenOut,status_code=201)
+def register(data:RegisterIn,db:Session=Depends(get_db)):
+    if db.scalar(select(User).where(User.email==data.email.lower())): raise HTTPException(409,"Email already registered")
+    org=db.get(Organisation,data.organisation_id)
+    if not org: raise HTTPException(404,"Organisation not found")
+    user=User(organisation_id=org.id,email=data.email.lower(),full_name=f"{data.first_name} {data.last_name}",phone=data.phone,role=Role.CUSTOMER,password_hash=hash_password(data.password))
+    db.add(user);db.commit();db.refresh(user)
+    return {"access_token":create_token(user),"refresh_token":create_refresh_token(user),"user":user}
+
+@router.patch("/profile",response_model=UserOut)
+def update_profile(data:ProfileUpdate,user:User=Depends(current_user),db:Session=Depends(get_db)):
+    user.full_name=data.full_name;user.phone=data.phone;user.language=data.language;db.commit();db.refresh(user);return user
+
+@router.post("/profile/delete-request",status_code=202)
+def deletion_request(reason:str|None=None,user:User=Depends(current_user),db:Session=Depends(get_db)):
+    db.add(AccountDeletionRequest(user_id=user.id,reason=reason));db.commit();return {"status":"accepted"}
+
+@router.get("/news")
+def list_news(user:User=Depends(current_user),db:Session=Depends(get_db)):
+    return db.scalars(select(News).where(News.organisation_id==user.organisation_id).order_by(News.published_at.desc())).all()
+
+@router.get("/news/{news_id}")
+def news_detail(news_id:str,user:User=Depends(current_user),db:Session=Depends(get_db)):
+    item=db.scalar(select(News).where(News.id==news_id,News.organisation_id==user.organisation_id));
+    if not item: raise HTTPException(404,"News not found")
+    return item
+
+@router.get("/products")
+def products(q:str|None=None,category:str|None=None,user:User=Depends(current_user),db:Session=Depends(get_db)):
+    stmt=select(Product).where(Product.organisation_id==user.organisation_id)
+    if q: stmt=stmt.where(or_(Product.name.ilike(f"%{q}%"),Product.brand.ilike(f"%{q}%"),Product.barcode==q))
+    if category: stmt=stmt.where(Product.category==category)
+    return db.scalars(stmt.order_by(Product.name)).all()
+
+@router.get("/products/barcode/{barcode}")
+def barcode(barcode:str,user:User=Depends(current_user),db:Session=Depends(get_db)):
+    item=db.scalar(select(Product).where(Product.barcode==barcode,Product.organisation_id==user.organisation_id))
+    if not item: raise HTTPException(404,"Product not found")
+    return item
+
+@router.get("/favourites/products")
+def favourites(user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
+    return db.scalars(select(Product).join(FavouriteProduct,FavouriteProduct.product_id==Product.id).where(FavouriteProduct.user_id==user.id)).all()
+
+@router.post("/favourites/products/{product_id}",status_code=201)
+def favourite(product_id:str,user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
+    product=db.scalar(select(Product).where(Product.id==product_id,Product.organisation_id==user.organisation_id))
+    if not product: raise HTTPException(404,"Product not found")
+    record=FavouriteProduct(organisation_id=user.organisation_id,user_id=user.id,product_id=product.id);db.add(record)
+    try: db.commit()
+    except IntegrityError: db.rollback()
+    return {"favourite":True}
+
+@router.delete("/favourites/products/{product_id}")
+def unfavourite(product_id:str,user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
+    db.execute(delete(FavouriteProduct).where(FavouriteProduct.user_id==user.id,FavouriteProduct.product_id==product_id));db.commit();return {"favourite":False}
+
+@router.post("/suggestions",response_model=SuggestionOut,status_code=201)
+def create_suggestion(data:SuggestionCreate,user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
+    if data.branch_id and not db.scalar(select(Branch).where(Branch.id==data.branch_id,Branch.organisation_id==user.organisation_id)): raise HTTPException(404,"Branch not found")
+    item=ManagementSuggestion(tracking_number=f"MS-{secrets.token_hex(4).upper()}",organisation_id=user.organisation_id,customer_id=user.id,**data.model_dump());db.add(item);db.commit();db.refresh(item);return item
+
+@router.get("/suggestions",response_model=list[SuggestionOut])
+def own_suggestions(user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
+    return db.scalars(select(ManagementSuggestion).where(ManagementSuggestion.customer_id==user.id).order_by(ManagementSuggestion.created_at.desc())).all()
+
+@router.get("/notifications")
+def notifications(user:User=Depends(current_user),db:Session=Depends(get_db)):
+    return db.scalars(select(Notification).where(Notification.user_id==user.id).order_by(Notification.created_at.desc())).all()
+
+@router.patch("/notifications/read-all")
+def mark_all_read(user:User=Depends(current_user),db:Session=Depends(get_db)):
+    items=db.scalars(select(Notification).where(Notification.user_id==user.id,Notification.is_read==False)).all()
+    for item in items:item.is_read=True
+    db.commit();return {"updated":len(items)}
+
+@router.patch("/notifications/{notification_id}/read")
+def mark_read(notification_id:str,user:User=Depends(current_user),db:Session=Depends(get_db)):
+    item=db.scalar(select(Notification).where(Notification.id==notification_id,Notification.user_id==user.id))
+    if not item: raise HTTPException(404,"Notification not found")
+    item.is_read=True;db.commit();return {"is_read":True}
+
+ADMIN=(Role.BRANCH_ADMIN,Role.HEAD_OFFICE_ADMIN,Role.PLATFORM_ADMIN)
+@router.get("/admin/suggestions",response_model=list[SuggestionOut])
+def admin_suggestions(user:User=Depends(roles(*ADMIN)),db:Session=Depends(get_db)):
+    stmt=select(ManagementSuggestion).order_by(ManagementSuggestion.created_at.desc())
+    if user.role!=Role.PLATFORM_ADMIN: stmt=stmt.where(ManagementSuggestion.organisation_id==user.organisation_id)
+    if user.role==Role.BRANCH_ADMIN: stmt=stmt.where(or_(ManagementSuggestion.branch_id==user.branch_id,ManagementSuggestion.branch_id.is_(None)))
+    return db.scalars(stmt).all()
+
+@router.patch("/admin/suggestions/{item_id}",response_model=SuggestionOut)
+def admin_update_suggestion(item_id:str,data:SuggestionUpdate,user:User=Depends(roles(*ADMIN)),db:Session=Depends(get_db)):
+    item=db.get(ManagementSuggestion,item_id)
+    allowed=item and (user.role==Role.PLATFORM_ADMIN or item.organisation_id==user.organisation_id) and (user.role!=Role.BRANCH_ADMIN or item.branch_id in (None,user.branch_id))
+    if not allowed: raise HTTPException(404,"Suggestion not found")
+    item.status=data.status;item.admin_note=data.admin_note
+    db.add(Notification(organisation_id=item.organisation_id,user_id=item.customer_id,kind="SUGGESTION_STATUS",title="Təklifiniz yeniləndi",body=f"{item.tracking_number}: {item.status.value}"));db.commit();db.refresh(item);return item

@@ -1,0 +1,1 @@
+export default{home:'Ana səhifə',prices:'Qiymətlər',report:'Problem bildir',cards:'Kartlar',profile:'Profil',news:'Xəbərlər',quick:'Sürətli keçidlər',discounts:'Seçilmiş endirimlər',activeReports:'Aktiv müraciətlər',branches:'Yaxın filiallar'};
