@@ -16,5 +16,4 @@ def test_synthetic_mp4_opens_and_auto_resolves_incident(tmp_path,database):
         branch=db.scalar(select(Branch));camera=Camera(organisation_id=branch.organisation_id,branch_id=branch.id,name="Synthetic QA",source_path=str(path));db.add(camera);db.flush();rule=CameraRule(organisation_id=branch.organisation_id,camera_id=camera.id,rule_type="BLOCKED_AISLE",roi="0,0,1,1",threshold=.005,trigger_frames=2,clear_frames=2);db.add(rule);db.commit()
         result=MP4Pipeline(db,camera,rule).process(max_frames=20)
         assert result["status"]=="ok" and result["processed_frames"]==7 and result["event_id"]
-        incident=db.scalar(select(Incident).where(Incident.source=="CAMERA").order_by(Incident.created_at.desc()));assert incident.status==IncidentStatus.AUTO_RESOLVED
-
+        incident=db.scalar(select(Incident).where(Incident.source=="CAMERA_EVENT").order_by(Incident.created_at.desc()));assert incident.status==IncidentStatus.AUTO_RESOLVED

@@ -11,7 +11,8 @@ from app.core.security import roles
 from app.core.time import as_utc, utc_now
 from app.db.session import get_db
 from app.models.audit import AuditQualityFlag, AuditResultItem, AuditStatus, AuditTask, Condition, ReAudit
-from app.models.domain import Incident, IncidentStatus, IncidentStatusHistory, Product, Role, User
+from app.models.domain import IncidentSource, IncidentStatus, Product, Role, User
+from app.services.incidents import create_incident
 from app.services.ocr import process_demo_text, process_image_bytes
 
 router = APIRouter(prefix="/api/v1")
@@ -209,10 +210,7 @@ def complete(task_id: str, user: User = Depends(roles(Role.STAFF)), db: Session 
     for item in items:
         if item.condition in (Condition.EXPIRED, Condition.DAMAGED, Condition.INVALID_PRODUCT):
             product = db.get(Product, item.product_id)
-            incident = Incident(organisation_id=task.organisation_id, branch_id=task.branch_id, source="STAFF_AUDIT", category="PRODUCT",
-                                title=f"Audit finding: {product.name}", description=item.note or item.condition.value,
-                                priority="HIGH" if item.condition == Condition.EXPIRED else "MEDIUM", status=IncidentStatus.VERIFIED)
-            incident.history.append(IncidentStatusHistory(status=IncidentStatus.VERIFIED, note="Finding explicitly confirmed by staff audit.", actor_id=user.id)); db.add(incident)
+            create_incident(db,organisation_id=task.organisation_id,branch_id=task.branch_id,source=IncidentSource.STAFF_AUDIT,category="PRODUCT",title=f"Audit finding: {product.name}",description=item.note or item.condition.value,priority="HIGH" if item.condition == Condition.EXPIRED else "MEDIUM",status=IncidentStatus.VERIFIED,actor=user,customer_note=None)
     db.commit()
     return task_view(task, db, True)
 

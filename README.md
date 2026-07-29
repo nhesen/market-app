@@ -59,7 +59,11 @@ python -m scripts.seed
 python -m alembic check
 ```
 
-The current verified PostgreSQL run reached Alembic revision `0005 (head)`. The customer demo contains two switchable markets, four branches, 30 products, market-scoped campaigns/cards/offers, and idempotent enrichment; repeated seed runs print `Demo data already exists` without duplicating records.
+The current verified PostgreSQL run reached Alembic revision `0006 (head)`. The customer demo contains two switchable markets, four branches, 30 products, market-scoped campaigns/cards/offers, and idempotent enrichment; repeated seed runs print `Demo data already exists` without duplicating records.
+
+## Unified incident lifecycle
+
+Customer reports, staff-audit findings, camera events, and manual admin entries now use one source-aware transition service. The internal lifecycle is `NEW`, `PRECHECK`, `VERIFICATION_REQUIRED`, `VERIFIED`, `ASSIGNED`, `IN_PROGRESS`, `RESOLUTION_CANDIDATE`, `AUTO_RESOLVED`, `MANUALLY_RESOLVED`, `REJECTED`, `REOPENED`, or `CANCELLED`. Invalid transitions return HTTP 409 with the current status and allowed destinations. Assignment, responsible department, SLA, resolution/rejection/reopening reasons, actor type, notes, attachments, and immutable transition history are returned by the admin API. Customer APIs expose only customer-visible notes and map internal states to `RECEIVED`, `CONFIRMED`, `IN_PROGRESS`, `RESOLVED`, `REJECTED`, or `CANCELLED`.
 
 ## Staff camera audit
 
@@ -89,7 +93,7 @@ npm run typecheck
 npx expo-doctor
 ```
 
-The last verified results were: backend `19 passed`; Alembic `No new upgrade operations detected`; admin lint and production build passed; mobile lint and strict TypeScript passed; Expo Doctor passed `18/18` checks.
+The last verified results were: backend `27 passed`; real PostgreSQL clean and existing-database upgrades reached `0006 (head)`; Alembic reported `No new upgrade operations detected`; admin lint and production build passed; mobile lint and strict TypeScript passed.
 
 ## Honest limitations
 

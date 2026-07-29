@@ -95,8 +95,8 @@ def network_analytics(user: User = Depends(roles(Role.HEAD_OFFICE_ADMIN)), db: S
     for branch in branches:
         incidents = db.scalars(select(Incident).where(Incident.branch_id == branch.id)).all()
         flags = db.scalar(select(func.count(AuditQualityFlag.id)).where(AuditQualityFlag.branch_id == branch.id)) or 0
-        open_count = sum(item.status.value not in ("RESOLVED", "AUTO_RESOLVED", "REJECTED") for item in incidents)
-        high = sum(item.priority == "HIGH" and item.status.value not in ("RESOLVED", "AUTO_RESOLVED", "REJECTED") for item in incidents)
+        open_count = sum(item.status.value not in ("MANUALLY_RESOLVED", "AUTO_RESOLVED", "REJECTED", "CANCELLED") for item in incidents)
+        high = sum(item.priority == "HIGH" and item.status.value not in ("MANUALLY_RESOLVED", "AUTO_RESOLVED", "REJECTED", "CANCELLED") for item in incidents)
         score = max(0, 100-high*10-max(0, open_count-high)*3-flags*2)
         output.append({"branch_id": branch.id, "branch": branch.name, "open_incidents": open_count, "high_risk": high, "quality_flags": flags, "score": score})
     return output

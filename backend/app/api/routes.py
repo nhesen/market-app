@@ -4,11 +4,11 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.security import create_refresh_token, create_token, current_user, hash_password, roles, verify_password
 from jose import JWTError, jwt
-from pydantic import BaseModel
+from pydantic import BaseModel,Field
 from app.db.session import get_db
-from app.models.domain import Branch, CustomerReport, Incident, LoyaltyCard, News, Organisation, Product, Role, User
-from app.schemas.api import IncidentOut, IncidentUpdate, LoginIn, ReportCreate, ReportOut, TokenOut, UserOut
-from app.services.incidents import create_customer_report, incident_view, report_view, set_status
+from app.models.domain import Branch, CustomerReport, Incident, IncidentSource, LoyaltyCard, News, Organisation, Product, Role, User
+from app.schemas.api import IncidentOut, IncidentUpdate, LoginIn, ManualIncidentCreate, ReportCreate, ReportOut, TokenOut, UserOut
+from app.services.incidents import add_note,create_customer_report,create_incident,incident_view,report_view,transition_incident
 
 router = APIRouter(prefix="/api/v1")
 class RefreshIn(BaseModel): refresh_token:str
@@ -106,21 +106,40 @@ def incidents(user: User = Depends(roles(*ADMIN_ROLES)), db: Session = Depends(g
     query = select(Incident).order_by(Incident.created_at.desc())
     if user.role != Role.PLATFORM_ADMIN: query = query.where(Incident.organisation_id == user.organisation_id)
     if user.role == Role.BRANCH_ADMIN: query = query.where(Incident.branch_id == user.branch_id)
-    return [incident_view(i) for i in db.scalars(query).all()]
+    return [incident_view(i,db) for i in db.scalars(query).all()]
+
+@router.post("/admin/incidents",response_model=IncidentOut,status_code=201)
+def create_manual_incident(data:ManualIncidentCreate,user:User=Depends(roles(*ADMIN_ROLES)),db:Session=Depends(get_db)):
+    branch=db.get(Branch,data.branch_id);allowed=branch and (user.role==Role.PLATFORM_ADMIN or branch.organisation_id==user.organisation_id) and (user.role!=Role.BRANCH_ADMIN or branch.id==user.branch_id)
+    if not allowed:raise HTTPException(404,"Branch not found")
+    item=create_incident(db,organisation_id=branch.organisation_id,branch_id=branch.id,source=IncidentSource.MANUAL_ADMIN_ENTRY,category=data.category,title=data.title,description=data.description,priority=data.priority,actor=user,customer_note=data.customer_note)
+    db.commit();db.refresh(item);return incident_view(item,db)
 
 @router.patch("/admin/incidents/{incident_id}", response_model=IncidentOut)
 def update_incident(incident_id: str, data: IncidentUpdate, user: User = Depends(roles(*ADMIN_ROLES)), db: Session = Depends(get_db)):
     incident = db.get(Incident, incident_id)
     allowed = incident and (user.role == Role.PLATFORM_ADMIN or incident.organisation_id == user.organisation_id) and (user.role != Role.BRANCH_ADMIN or incident.branch_id == user.branch_id)
     if not allowed: raise HTTPException(status_code=404, detail="Incident not found")
-    return incident_view(set_status(db, incident, data.status, data.note, user, data.department))
+    note=data.internal_note or data.note
+    if not note:raise HTTPException(422,"Internal note is required")
+    return incident_view(transition_incident(db,incident,data.status,actor=user,internal_note=note,customer_note=data.customer_note,responsible_department=data.responsible_department or data.department,assigned_staff_id=data.assigned_staff_id,assigned_admin_id=data.assigned_admin_id,sla_hours=data.sla_hours,rejection_reason=data.rejection_reason,resolution_reason=data.resolution_reason,reopening_reason=data.reopening_reason,attachment_ids=data.attachment_ids),db)
+
+class IncidentNoteIn(BaseModel):
+    note:str=Field(min_length=2,max_length=3000)
+    customer_visible:bool=False
+
+@router.post("/admin/incidents/{incident_id}/notes",status_code=201)
+def create_incident_note(incident_id:str,data:IncidentNoteIn,user:User=Depends(roles(*ADMIN_ROLES)),db:Session=Depends(get_db)):
+    incident=db.get(Incident,incident_id);allowed=incident and (user.role==Role.PLATFORM_ADMIN or incident.organisation_id==user.organisation_id) and (user.role!=Role.BRANCH_ADMIN or incident.branch_id==user.branch_id)
+    if not allowed:raise HTTPException(404,"Incident not found")
+    return add_note(db,incident,user,data.note,data.customer_visible)
 
 @router.get("/admin/dashboard")
 def dashboard(user: User = Depends(roles(*ADMIN_ROLES)), db: Session = Depends(get_db)):
     query = select(Incident)
     if user.role != Role.PLATFORM_ADMIN: query = query.where(Incident.organisation_id == user.organisation_id)
     if user.role == Role.BRANCH_ADMIN: query = query.where(Incident.branch_id == user.branch_id)
-    rows = db.scalars(query).all(); open_rows = [i for i in rows if i.status.value not in ("RESOLVED", "AUTO_RESOLVED", "REJECTED")]; high = sum(i.priority == "HIGH" for i in open_rows)
+    rows = db.scalars(query).all(); open_rows = [i for i in rows if i.status.value not in ("MANUALLY_RESOLVED", "AUTO_RESOLVED", "REJECTED", "CANCELLED")]; high = sum(i.priority == "HIGH" for i in open_rows)
     score = max(0, min(100, 100 - high * 10 - max(0, len(open_rows) - high) * 3))
     return {"open_incidents": len(open_rows), "high_risk": high, "resolved": len(rows) - len(open_rows), "smart_store_score": score, "score_explanation": "100 − 10 × open high-risk − 3 × other open issues"}
 

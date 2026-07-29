@@ -20,13 +20,26 @@ class Role(str, enum.Enum):
 
 
 class IncidentStatus(str, enum.Enum):
+    NEW = "NEW"
+    PRECHECK = "PRECHECK"
     VERIFICATION_REQUIRED = "VERIFICATION_REQUIRED"
     VERIFIED = "VERIFIED"
-    REJECTED = "REJECTED"
+    ASSIGNED = "ASSIGNED"
     IN_PROGRESS = "IN_PROGRESS"
-    RESOLVED = "RESOLVED"
+    RESOLUTION_CANDIDATE = "RESOLUTION_CANDIDATE"
     AUTO_RESOLVED = "AUTO_RESOLVED"
+    MANUALLY_RESOLVED = "MANUALLY_RESOLVED"
+    RESOLVED = "MANUALLY_RESOLVED"  # compatibility alias; API serialises MANUALLY_RESOLVED
+    REJECTED = "REJECTED"
     REOPENED = "REOPENED"
+    CANCELLED = "CANCELLED"
+
+
+class IncidentSource(str, enum.Enum):
+    CUSTOMER_REPORT = "CUSTOMER_REPORT"
+    STAFF_AUDIT = "STAFF_AUDIT"
+    CAMERA_EVENT = "CAMERA_EVENT"
+    MANUAL_ADMIN_ENTRY = "MANUAL_ADMIN_ENTRY"
 
 
 class Organisation(Base):
@@ -116,7 +129,7 @@ class CustomerReport(Base):
     barcode: Mapped[str | None] = mapped_column(String(32), nullable=True)
     title: Mapped[str] = mapped_column(String(180))
     description: Mapped[str] = mapped_column(Text)
-    status: Mapped[IncidentStatus] = mapped_column(Enum(IncidentStatus), default=IncidentStatus.VERIFICATION_REQUIRED)
+    status: Mapped[IncidentStatus] = mapped_column(Enum(IncidentStatus), default=IncidentStatus.NEW)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     incident: Mapped["Incident"] = relationship(back_populates="report", uselist=False)
 
@@ -127,13 +140,20 @@ class Incident(Base):
     organisation_id: Mapped[str] = mapped_column(ForeignKey("organisations.id"), index=True)
     branch_id: Mapped[str] = mapped_column(ForeignKey("branches.id"), index=True)
     report_id: Mapped[str | None] = mapped_column(ForeignKey("customer_reports.id"), unique=True, nullable=True)
-    source: Mapped[str] = mapped_column(String(32))
+    source: Mapped[IncidentSource] = mapped_column(Enum(IncidentSource))
     category: Mapped[str] = mapped_column(String(80))
     title: Mapped[str] = mapped_column(String(180))
     description: Mapped[str] = mapped_column(Text)
     priority: Mapped[str] = mapped_column(String(24), default="MEDIUM")
-    status: Mapped[IncidentStatus] = mapped_column(Enum(IncidentStatus), default=IncidentStatus.VERIFICATION_REQUIRED)
-    department: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    status: Mapped[IncidentStatus] = mapped_column(Enum(IncidentStatus), default=IncidentStatus.NEW)
+    responsible_department: Mapped[str | None] = mapped_column("department",String(120), nullable=True)
+    assigned_staff_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"),nullable=True,index=True)
+    assigned_admin_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"),nullable=True,index=True)
+    sla_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True),nullable=True,index=True)
+    rejection_reason: Mapped[str | None] = mapped_column(Text,nullable=True)
+    resolution_reason: Mapped[str | None] = mapped_column(Text,nullable=True)
+    reopening_reason: Mapped[str | None] = mapped_column(Text,nullable=True)
+    resolution_actor_type: Mapped[str | None] = mapped_column(String(20),nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
     report: Mapped[CustomerReport | None] = relationship(back_populates="incident")
@@ -145,9 +165,23 @@ class IncidentStatusHistory(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     incident_id: Mapped[str] = mapped_column(ForeignKey("incidents.id"), index=True)
     status: Mapped[IncidentStatus] = mapped_column(Enum(IncidentStatus))
+    from_status: Mapped[IncidentStatus | None] = mapped_column(Enum(IncidentStatus),nullable=True)
     note: Mapped[str] = mapped_column(String(255))
+    internal_note: Mapped[str | None] = mapped_column(Text,nullable=True)
+    customer_note: Mapped[str | None] = mapped_column(Text,nullable=True)
+    actor_type: Mapped[str] = mapped_column(String(20),default="MANUAL")
     actor_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+
+
+class IncidentNote(Base):
+    __tablename__="incident_notes"
+    id:Mapped[str]=mapped_column(String(36),primary_key=True,default=uid)
+    incident_id:Mapped[str]=mapped_column(ForeignKey("incidents.id"),index=True)
+    actor_id:Mapped[str|None]=mapped_column(ForeignKey("users.id"),nullable=True)
+    visibility:Mapped[str]=mapped_column(String(20))
+    note:Mapped[str]=mapped_column(Text)
+    created_at:Mapped[datetime]=mapped_column(DateTime,default=utc_now)
 
 
 class CameraEvent(Base):

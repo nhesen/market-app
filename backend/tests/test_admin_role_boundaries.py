@@ -1,7 +1,7 @@
 from sqlalchemy import select
 
 from app.db.session import SessionLocal
-from app.models.domain import Branch, Incident, IncidentStatus, Organisation
+from app.models.domain import Branch, Incident, IncidentSource, IncidentStatus, Organisation
 
 
 def auth(token):
@@ -30,11 +30,11 @@ def test_head_office_cannot_cross_organisation(client):
     with SessionLocal() as db:
         city = db.scalar(select(Organisation).where(Organisation.name == "CityMart"))
         city_branch = db.scalar(select(Branch).where(Branch.organisation_id == city.id))
-        incident = Incident(organisation_id=city.id, branch_id=city_branch.id, source="QA", category="SECURITY", title="Cross tenant secret", description="Must never leak", priority="HIGH", status=IncidentStatus.VERIFIED)
+        incident = Incident(organisation_id=city.id, branch_id=city_branch.id, source=IncidentSource.MANUAL_ADMIN_ENTRY, category="SECURITY", title="Cross tenant secret", description="Must never leak", priority="HIGH", status=IncidentStatus.VERIFIED)
         db.add(incident); db.commit(); incident_id = incident.id; city_id = city.id
     rows = client.get("/api/v1/admin/incidents", headers=auth(head))
     assert rows.status_code == 200 and all(item["id"] != incident_id for item in rows.json())
-    assert client.patch(f"/api/v1/admin/incidents/{incident_id}", headers=auth(head), json={"status":"RESOLVED","note":"forbidden"}).status_code == 404
+    assert client.patch(f"/api/v1/admin/incidents/{incident_id}", headers=auth(head), json={"status":"IN_PROGRESS","note":"forbidden"}).status_code == 404
     assert client.get(f"/api/v1/platform/organisations/{city_id}", headers=auth(head)).status_code == 403
     assert client.get("/api/v1/platform/health", headers=auth(head)).status_code == 403
     network = client.get("/api/v1/admin/network-analytics", headers=auth(head))

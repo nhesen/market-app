@@ -14,7 +14,7 @@ class BranchIn(BaseModel): organisation_id:str;name:str=Field(min_length=2,max_l
 class AdminIn(BaseModel): organisation_id:str;branch_id:str|None=None;email:str;full_name:str;password:str=Field(min_length=8,max_length=72);role:Role
 
 def score_data(rows:list[Incident],overdue:int,valid_audits:int):
-    closed={IncidentStatus.RESOLVED,IncidentStatus.AUTO_RESOLVED,IncidentStatus.REJECTED}
+    closed={IncidentStatus.MANUALLY_RESOLVED,IncidentStatus.AUTO_RESOLVED,IncidentStatus.REJECTED,IncidentStatus.CANCELLED}
     high=sum(i.priority=="HIGH" and i.status not in closed for i in rows);other=sum(i.priority!="HIGH" and i.status not in closed for i in rows);bonus=min(10,valid_audits)
     deductions=[{"label":"Açıq yüksək risk","count":high,"points":high*10},{"label":"Gecikmiş audit","count":overdue,"points":overdue*5},{"label":"Digər açıq məsələ","count":other,"points":other*3}]
     return {"score":max(0,min(100,100-sum(x["points"] for x in deductions)+bonus)),"deductions":deductions,"additions":[{"label":"Etibarlı audit əhatəsi","points":bonus}],"explanation":"Daxili, konfiqurasiya edilə bilən MVP sağlamlıq göstəricisi."}

@@ -11,12 +11,15 @@ def test_customer_admin_customer_report_flow(client, customer_token, admin_token
     branch = client.get("/api/v1/branches", headers=auth(customer_token)).json()[0]
     created = client.post("/api/v1/reports", headers=auth(customer_token), json={"branch_id": branch["id"], "category":"EMPTY_SHELF", "title":"Məhsul rəfdə yoxdur", "description":"Süd bölməsində məhsul üçün etiket var, amma rəf boşdur."})
     assert created.status_code == 201
-    report = created.json(); assert report["status"] == "VERIFICATION_REQUIRED"
+    report = created.json(); assert report["status"] == "NEW" and report["customer_status"] == "RECEIVED"
     incident = next(i for i in client.get("/api/v1/admin/incidents", headers=auth(admin_token)).json() if i["report_id"] == report["id"])
-    changed = client.patch(f'/api/v1/admin/incidents/{incident["id"]}', headers=auth(admin_token), json={"status":"IN_PROGRESS", "department":"Operations", "note":"Filial əməkdaşına yönləndirildi."})
-    assert changed.status_code == 200
+    admin=client.get("/api/v1/auth/me",headers=auth(admin_token)).json()
+    steps=[{"status":"PRECHECK","internal_note":"Initial precheck.","customer_note":"Müraciət ilkin yoxlamadadır."},{"status":"VERIFICATION_REQUIRED","internal_note":"Branch evidence required.","customer_note":"Filial yoxlaması aparılır."},{"status":"VERIFIED","internal_note":"Finding verified.","customer_note":"Problem təsdiqləndi."},{"status":"ASSIGNED","internal_note":"Assigned to operations.","customer_note":"İcraçı təyin edildi.","responsible_department":"Operations","assigned_admin_id":admin["id"],"sla_hours":24},{"status":"IN_PROGRESS","internal_note":"Work started.","customer_note":"Problem həll edilir."}]
+    for payload in steps:
+        changed=client.patch(f'/api/v1/admin/incidents/{incident["id"]}',headers=auth(admin_token),json=payload)
+        assert changed.status_code==200,changed.text
     refreshed = client.get(f'/api/v1/reports/{report["id"]}', headers=auth(customer_token)).json()
-    assert refreshed["status"] == "IN_PROGRESS" and len(refreshed["history"]) == 2
+    assert refreshed["status"] == "IN_PROGRESS" and refreshed["customer_status"]=="IN_PROGRESS" and len(refreshed["history"]) == 6
 
 def test_customer_cannot_access_admin(client, customer_token):
     assert client.get("/api/v1/admin/incidents", headers=auth(customer_token)).status_code == 403
