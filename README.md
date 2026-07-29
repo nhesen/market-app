@@ -57,7 +57,11 @@ python -m scripts.seed
 python -m alembic check
 ```
 
-The current verified PostgreSQL run reached Alembic revision `0004 (head)`. The customer demo contains two switchable markets, four branches, 30 products, market-scoped campaigns/cards/offers, and idempotent enrichment; repeated seed runs print `Demo data already exists` without duplicating records.
+The current verified PostgreSQL run reached Alembic revision `0005 (head)`. The customer demo contains two switchable markets, four branches, 30 products, market-scoped campaigns/cards/offers, and idempotent enrichment; repeated seed runs print `Demo data already exists` without duplicating records.
+
+## Staff camera audit
+
+Sign in with `staff@demo.az` / `Demo123!`. STAFF sessions are routed to the dedicated audit panel. Open an assigned task, start it, scan each barcode with Expo Camera, capture the expiry-date field, review every OCR candidate, explicitly confirm or correct the date, choose the product condition, and review all saved items before completion. Confirmed expired, damaged, or invalid products create a `STAFF_AUDIT` incident visible to branch administration. Missing/unreadable images, invalid dates, duplicate scans, excessive OCR corrections, incomplete counts, short duration, and re-audit mismatches persist as audit quality flags.
 
 ## Quality gates
 

@@ -7,7 +7,7 @@ from app.models.domain import uid
 from app.core.time import utc_now
 
 class AuditStatus(str,enum.Enum): ASSIGNED="ASSIGNED";IN_PROGRESS="IN_PROGRESS";COMPLETED="COMPLETED";OVERDUE="OVERDUE"
-class Condition(str,enum.Enum): NORMAL="NORMAL";EXPIRING_SOON="EXPIRING_SOON";EXPIRED="EXPIRED";DAMAGED="DAMAGED";UNREADABLE="UNREADABLE";OTHER="OTHER"
+class Condition(str,enum.Enum): NORMAL="NORMAL";EXPIRING_SOON="EXPIRING_SOON";EXPIRED="EXPIRED";DAMAGED="DAMAGED";INVALID_PRODUCT="INVALID_PRODUCT";UNREADABLE="UNREADABLE";OTHER="OTHER"
 
 class AuditTask(Base):
     __tablename__="audit_tasks"
@@ -16,7 +16,7 @@ class AuditTask(Base):
 
 class AuditResultItem(Base):
     __tablename__="audit_result_items";__table_args__=(UniqueConstraint("task_id","product_id"),)
-    id:Mapped[str]=mapped_column(String(36),primary_key=True,default=uid);task_id:Mapped[str]=mapped_column(ForeignKey("audit_tasks.id"),index=True);product_id:Mapped[str]=mapped_column(ForeignKey("products.id"),index=True);barcode:Mapped[str]=mapped_column(String(32));confirmed_date:Mapped[str|None]=mapped_column(String(10),nullable=True);ocr_corrected:Mapped[bool]=mapped_column(Boolean,default=False);condition:Mapped[Condition]=mapped_column(Enum(Condition));note:Mapped[str|None]=mapped_column(Text,nullable=True);photo_key:Mapped[str|None]=mapped_column(String(255),nullable=True);created_at:Mapped[datetime]=mapped_column(DateTime,default=utc_now)
+    id:Mapped[str]=mapped_column(String(36),primary_key=True,default=uid);task_id:Mapped[str]=mapped_column(ForeignKey("audit_tasks.id"),index=True);product_id:Mapped[str]=mapped_column(ForeignKey("products.id"),index=True);barcode:Mapped[str]=mapped_column(String(32));confirmed_date:Mapped[str|None]=mapped_column(String(10),nullable=True);date_confirmed:Mapped[bool]=mapped_column(Boolean,default=False);ocr_corrected:Mapped[bool]=mapped_column(Boolean,default=False);ocr_engine:Mapped[str|None]=mapped_column(String(60),nullable=True);ocr_candidates_json:Mapped[str]=mapped_column(Text,default="[]");correction_count:Mapped[int]=mapped_column(Integer,default=0);condition:Mapped[Condition]=mapped_column(Enum(Condition));note:Mapped[str|None]=mapped_column(Text,nullable=True);photo_key:Mapped[str|None]=mapped_column(String(255),nullable=True);created_at:Mapped[datetime]=mapped_column(DateTime,default=utc_now)
 
 class AuditQualityFlag(Base):
     __tablename__="audit_quality_flags"
