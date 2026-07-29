@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.security import current_user,roles
 from app.db.session import get_db
 from app.models.domain import Branch,News,Product,Role,User
-from app.models.retail import AuditLog,BranchService,DiscountCampaign,DiscountCampaignProduct,FileAsset,LoyaltyRewardOffer,LoyaltyTransaction,ProductPrice
+from app.models.retail import AuditLog,BranchService,DiscountCampaign,DiscountCampaignProduct,FileAsset,LoyaltyRewardOffer,LoyaltyTransaction,ProductCategory,ProductPrice
 from app.services.storage import storage
 
 router=APIRouter(prefix="/api/v1")
@@ -17,6 +17,7 @@ class NewsIn(BaseModel): title_az:str;title_en:str;summary_az:str;summary_en:str
 class PriceIn(BaseModel): branch_id:str;product_id:str;price:float=Field(gt=0);previous_price:float|None=None;available:bool=True
 class CampaignIn(BaseModel): title:str;description:str;starts_on:date;ends_on:date;published:bool=True
 class CampaignProductIn(BaseModel): product_id:str;branch_id:str;discount_price:float=Field(gt=0)
+class CategoryIn(BaseModel): name:str=Field(min_length=2,max_length=100)
 
 def org_filter(user:User,model): return True if user.role==Role.PLATFORM_ADMIN else model.organisation_id==user.organisation_id
 def log(db:Session,user:User,action:str,kind:str,entity_id:str):db.add(AuditLog(organisation_id=user.organisation_id,actor_id=user.id,action=action,entity_type=kind,entity_id=entity_id))
@@ -89,6 +90,7 @@ def admin_news(user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_
     stmt=select(News);stmt=stmt if user.role==Role.PLATFORM_ADMIN else stmt.where(News.organisation_id==user.organisation_id);return db.scalars(stmt.order_by(News.published_at.desc())).all()
 @router.post("/admin/news",status_code=201)
 def create_news(data:NewsIn,user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
+    if data.branch_id and not db.scalar(select(Branch).where(Branch.id==data.branch_id,Branch.organisation_id==user.organisation_id)):raise HTTPException(404,"Branch not found in your organisation")
     item=News(organisation_id=user.organisation_id,**data.model_dump());db.add(item);db.flush();log(db,user,"CREATE","News",item.id);db.commit();db.refresh(item);return item
 @router.patch("/admin/news/{item_id}")
 def update_news(item_id:str,data:NewsIn,user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
@@ -112,6 +114,32 @@ def set_price(data:PriceIn,user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=
     else:item=ProductPrice(organisation_id=user.organisation_id,**data.model_dump());db.add(item)
     db.commit();db.refresh(item);return item
 
+@router.get("/admin/prices")
+def admin_prices(user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
+    stmt=select(ProductPrice);stmt=stmt if user.role==Role.PLATFORM_ADMIN else stmt.where(ProductPrice.organisation_id==user.organisation_id);return db.scalars(stmt.order_by(ProductPrice.updated_at.desc())).all()
+
+@router.delete("/admin/prices/{item_id}",status_code=204)
+def delete_price(item_id:str,user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
+    item=db.get(ProductPrice,item_id)
+    if not item or (user.role!=Role.PLATFORM_ADMIN and item.organisation_id!=user.organisation_id):raise HTTPException(404,"Price not found")
+    db.delete(item);db.commit()
+
+@router.get("/admin/categories")
+def admin_categories(user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
+    stmt=select(ProductCategory);stmt=stmt if user.role==Role.PLATFORM_ADMIN else stmt.where(ProductCategory.organisation_id==user.organisation_id);return db.scalars(stmt.order_by(ProductCategory.name)).all()
+
+@router.post("/admin/categories",status_code=201)
+def create_category(data:CategoryIn,user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
+    if not user.organisation_id:raise HTTPException(422,"Tenant context required")
+    if db.scalar(select(ProductCategory).where(ProductCategory.organisation_id==user.organisation_id,ProductCategory.name==data.name)):raise HTTPException(409,"Category already exists")
+    item=ProductCategory(organisation_id=user.organisation_id,name=data.name);db.add(item);db.commit();db.refresh(item);return item
+
+@router.delete("/admin/categories/{item_id}",status_code=204)
+def delete_category(item_id:str,user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
+    item=db.get(ProductCategory,item_id)
+    if not item or (user.role!=Role.PLATFORM_ADMIN and item.organisation_id!=user.organisation_id):raise HTTPException(404,"Category not found")
+    db.delete(item);db.commit()
+
 @router.get("/admin/campaigns")
 def admin_campaigns(user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
     stmt=select(DiscountCampaign);stmt=stmt if user.role==Role.PLATFORM_ADMIN else stmt.where(DiscountCampaign.organisation_id==user.organisation_id);return db.scalars(stmt).all()
@@ -119,6 +147,18 @@ def admin_campaigns(user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends
 def create_campaign(data:CampaignIn,user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
     if data.ends_on<data.starts_on:raise HTTPException(422,"End date must be after start date")
     item=DiscountCampaign(organisation_id=user.organisation_id,**data.model_dump());db.add(item);db.flush();log(db,user,"CREATE","Campaign",item.id);db.commit();db.refresh(item);return item
+@router.patch("/admin/campaigns/{item_id}")
+def update_campaign(item_id:str,data:CampaignIn,user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
+    item=db.get(DiscountCampaign,item_id)
+    if not item or (user.role!=Role.PLATFORM_ADMIN and item.organisation_id!=user.organisation_id):raise HTTPException(404,"Campaign not found")
+    if data.ends_on<data.starts_on:raise HTTPException(422,"End date must be after start date")
+    for key,value in data.model_dump().items():setattr(item,key,value)
+    log(db,user,"UPDATE","Campaign",item.id);db.commit();db.refresh(item);return item
+@router.delete("/admin/campaigns/{item_id}",status_code=204)
+def delete_campaign(item_id:str,user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
+    item=db.get(DiscountCampaign,item_id)
+    if not item or (user.role!=Role.PLATFORM_ADMIN and item.organisation_id!=user.organisation_id):raise HTTPException(404,"Campaign not found")
+    log(db,user,"DELETE","Campaign",item.id);db.delete(item);db.commit()
 @router.post("/admin/campaigns/{campaign_id}/products",status_code=201)
 def campaign_product(campaign_id:str,data:CampaignProductIn,user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
     campaign=db.scalar(select(DiscountCampaign).where(DiscountCampaign.id==campaign_id,DiscountCampaign.organisation_id==user.organisation_id));product=db.scalar(select(Product).where(Product.id==data.product_id,Product.organisation_id==user.organisation_id));branch=db.scalar(select(Branch).where(Branch.id==data.branch_id,Branch.organisation_id==user.organisation_id))

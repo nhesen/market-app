@@ -8,6 +8,7 @@ from app.api.audit_routes import router as audit_router
 from app.api.platform_routes import router as platform_router
 from app.api.content_routes import router as content_router
 from app.api.vision_routes import router as vision_router
+from app.api.admin_routes import router as admin_router
 from app.core.config import settings
 from app.db.session import Base, engine
 import app.models  # noqa: F401
@@ -30,6 +31,7 @@ app.include_router(audit_router)
 app.include_router(platform_router)
 app.include_router(content_router)
 app.include_router(vision_router)
+app.include_router(admin_router)
 app.mount("/uploads",StaticFiles(directory=settings.upload_dir),name="uploads")
 app.mount("/assets",StaticFiles(directory="assets"),name="assets")
 

@@ -41,6 +41,8 @@ Admin: `http://localhost:5173`; API docs: `http://localhost:8000/docs`. For a ph
 
 Demo credentials (password `Demo123!`): `customer@demo.az`, `branch@demo.az`, `head@demo.az`, `staff@demo.az`, `platform@martiq.az`.
 
+The React admin has independent route trees and navigation for `BRANCH_ADMIN` (`/branch`), `HEAD_OFFICE_ADMIN` (`/head`), and `PLATFORM_ADMIN` (`/platform`). These are presentation guards only; every corresponding API endpoint also enforces branch, organisation, or platform scope on the backend. Use `branch@demo.az`, `head@demo.az`, or `platform@martiq.az` to verify each workspace.
+
 ## Clean PostgreSQL verification
 
 Warning: `docker compose down --volumes` deletes the local MARTIQ PostgreSQL volume. Use it only when a clean QA database is intended.

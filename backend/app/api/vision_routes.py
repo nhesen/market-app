@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.core.security import roles
 from app.db.session import get_db
-from app.models.domain import CameraEvent,Incident,IncidentStatus,Role,User
+from app.models.domain import Branch,CameraEvent,Incident,IncidentStatus,Role,User
 from app.models.vision import Camera,CameraRule
 from app.services.incidents import set_status
 from app.services.video_pipeline import MP4Pipeline
@@ -22,8 +22,9 @@ def scoped(stmt,user,model):
 def cameras(user:User=Depends(roles(*ADMINS)),db:Session=Depends(get_db)):return db.scalars(scoped(select(Camera),user,Camera)).all()
 @router.post("/admin/cameras",status_code=201)
 def create_camera(data:CameraIn,user:User=Depends(roles(*ADMINS)),db:Session=Depends(get_db)):
-    if user.role==Role.BRANCH_ADMIN and data.branch_id!=user.branch_id:raise HTTPException(403,"Branch access denied")
-    item=Camera(organisation_id=user.organisation_id,**data.model_dump());db.add(item);db.commit();db.refresh(item);return item
+    branch=db.get(Branch,data.branch_id);allowed=branch and (user.role==Role.PLATFORM_ADMIN or branch.organisation_id==user.organisation_id) and (user.role!=Role.BRANCH_ADMIN or branch.id==user.branch_id)
+    if not allowed:raise HTTPException(404,"Branch not found")
+    item=Camera(organisation_id=branch.organisation_id,**data.model_dump());db.add(item);db.commit();db.refresh(item);return item
 @router.get("/admin/camera-rules")
 def rules(user:User=Depends(roles(*ADMINS)),db:Session=Depends(get_db)):
     stmt=select(CameraRule).join(Camera,Camera.id==CameraRule.camera_id)
@@ -54,4 +55,3 @@ def false_alert(event_id:str,user:User=Depends(roles(*ADMINS)),db:Session=Depend
 @router.get("/admin/vision-health")
 def health(user:User=Depends(roles(*ADMINS)),db:Session=Depends(get_db)):
     rows=db.scalars(scoped(select(Camera),user,Camera)).all();return [{"camera_id":x.id,"name":x.name,"source_type":x.source_type,"source_active":x.enabled and not x.last_error,"last_processed_frame":x.last_frame_at,"fps_estimate":x.fps_estimate,"processing_error":x.last_error} for x in rows]
-

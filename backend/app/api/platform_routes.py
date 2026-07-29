@@ -43,6 +43,10 @@ def create_branch(data:BranchIn,user:User=Depends(roles(Role.PLATFORM_ADMIN)),db
 def create_admin(data:AdminIn,user:User=Depends(roles(Role.PLATFORM_ADMIN)),db:Session=Depends(get_db)):
     if data.role not in (Role.BRANCH_ADMIN,Role.HEAD_OFFICE_ADMIN):raise HTTPException(422,"Tenant admin role required")
     if not db.get(Organisation,data.organisation_id):raise HTTPException(404,"Organisation not found")
+    if data.role==Role.BRANCH_ADMIN:
+        branch=db.get(Branch,data.branch_id) if data.branch_id else None
+        if not branch or branch.organisation_id!=data.organisation_id:raise HTTPException(422,"Branch admin requires a branch in the selected organisation")
+    elif data.branch_id:raise HTTPException(422,"Head-office admin cannot be assigned to one branch")
     item=User(organisation_id=data.organisation_id,branch_id=data.branch_id,email=data.email.lower(),full_name=data.full_name,role=data.role,password_hash=hash_password(data.password));db.add(item);db.commit();db.refresh(item);return {"id":item.id,"email":item.email,"role":item.role}
 
 @router.get("/platform/usage")
