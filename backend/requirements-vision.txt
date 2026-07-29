@@ -1,0 +1,3 @@
+# Optional YOLO queue/person adapter. Core OpenCV controlled rules do not require this file.
+-r requirements.txt
+ultralytics==8.3.194

@@ -59,11 +59,15 @@ python -m scripts.seed
 python -m alembic check
 ```
 
-The current verified PostgreSQL run reached Alembic revision `0006 (head)`. The customer demo contains two switchable markets, four branches, 30 products, market-scoped campaigns/cards/offers, and idempotent enrichment; repeated seed runs print `Demo data already exists` without duplicating records.
+The current verified PostgreSQL run reached Alembic revision `0007 (head)`. The customer demo contains two switchable markets, four branches, 30 products, market-scoped campaigns/cards/offers, and idempotent enrichment; repeated seed runs print `Demo data already exists` without duplicating records.
 
 ## Unified incident lifecycle
 
 Customer reports, staff-audit findings, camera events, and manual admin entries now use one source-aware transition service. The internal lifecycle is `NEW`, `PRECHECK`, `VERIFICATION_REQUIRED`, `VERIFIED`, `ASSIGNED`, `IN_PROGRESS`, `RESOLUTION_CANDIDATE`, `AUTO_RESOLVED`, `MANUALLY_RESOLVED`, `REJECTED`, `REOPENED`, or `CANCELLED`. Invalid transitions return HTTP 409 with the current status and allowed destinations. Assignment, responsible department, SLA, resolution/rejection/reopening reasons, actor type, notes, attachments, and immutable transition history are returned by the admin API. Customer APIs expose only customer-visible notes and map internal states to `RECEIVED`, `CONFIRMED`, `IN_PROGRESS`, `RESOLVED`, `REJECTED`, or `CANCELLED`.
+
+## Hybrid vision demo
+
+Run `python -m scripts.generate_vision_videos` from `backend` to create reproducible normal, floor-hazard, blocked-aisle, depleted-promo and queue MP4 inputs. They are controlled pre-recorded demos, not RTSP. MARTIQ uses explicit OpenCV/ROI rules for the controlled hazard and coverage demos and reserves optional YOLO for applicable pretrained classes such as people. No labelled custom spill dataset or custom hazard weights are included, so the project does not describe its spill rule as YOLO. See [vision architecture](docs/vision.md).
 
 ## Staff camera audit
 
@@ -93,7 +97,7 @@ npm run typecheck
 npx expo-doctor
 ```
 
-The last verified results were: backend `27 passed`; real PostgreSQL clean and existing-database upgrades reached `0006 (head)`; Alembic reported `No new upgrade operations detected`; admin lint and production build passed; mobile lint and strict TypeScript passed.
+The last verified results were: backend `33 passed`; real PostgreSQL clean and existing-database upgrades reached `0007 (head)`; Alembic reported `No new upgrade operations detected`; admin lint and production build passed; mobile lint and strict TypeScript passed.
 
 ## Honest limitations
 

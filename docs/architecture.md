@@ -9,5 +9,4 @@ React admin ─────────┘       ├─ local/S3-ready storage b
 Vision simulator ────────────└─ unified incident service
 ```
 
-The vision runner uses persistence and clear thresholds. It can be disabled without affecting reports. Storage, OCR, notifications, and vision sit behind replaceable service boundaries.
-
+The vision runner is hybrid and uses rule-specific persistence and clear thresholds. YOLO is limited to applicable pretrained objects such as people for queue counts; controlled hazard, promo-coverage and contour-support demos use explicit OpenCV/ROI rules. It can be disabled without affecting reports. Engine identity and evidence metadata are persisted with each event. See [vision architecture](vision.md). Storage, OCR, notifications, and vision sit behind replaceable service boundaries.

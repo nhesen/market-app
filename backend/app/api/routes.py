@@ -147,4 +147,4 @@ def dashboard(user: User = Depends(roles(*ADMIN_ROLES)), db: Session = Depends(g
 def database_health(db: Session = Depends(get_db)): db.execute(text("SELECT 1")); return {"status": "ok"}
 
 @router.get("/health/vision")
-def vision_health(): return {"status": "demo-ready" if settings.vision_demo_enabled else "disabled", "mode": "simulated MP4 continuous source"}
+def vision_health(): return {"status":"demo-ready" if settings.vision_demo_enabled else "disabled","mode":"controlled MP4 hybrid rules","rtsp":False,"accuracy_claim":"No universal or 100% accuracy claim. Every signal requires rule-specific validation and human review."}

@@ -17,12 +17,12 @@ BASE={
     IncidentStatus.VERIFICATION_REQUIRED:{IncidentStatus.VERIFIED,IncidentStatus.REJECTED,IncidentStatus.CANCELLED},
     IncidentStatus.VERIFIED:{IncidentStatus.ASSIGNED,IncidentStatus.IN_PROGRESS,IncidentStatus.REJECTED,IncidentStatus.CANCELLED},
     IncidentStatus.ASSIGNED:{IncidentStatus.IN_PROGRESS,IncidentStatus.CANCELLED},
-    IncidentStatus.IN_PROGRESS:{IncidentStatus.RESOLUTION_CANDIDATE,IncidentStatus.CANCELLED},
+    IncidentStatus.IN_PROGRESS:{IncidentStatus.RESOLUTION_CANDIDATE,IncidentStatus.REJECTED,IncidentStatus.CANCELLED},
     IncidentStatus.RESOLUTION_CANDIDATE:{IncidentStatus.MANUALLY_RESOLVED,IncidentStatus.IN_PROGRESS},
     IncidentStatus.AUTO_RESOLVED:{IncidentStatus.REOPENED},
     IncidentStatus.MANUALLY_RESOLVED:{IncidentStatus.REOPENED},
     IncidentStatus.REJECTED:{IncidentStatus.REOPENED},
-    IncidentStatus.REOPENED:{IncidentStatus.ASSIGNED,IncidentStatus.IN_PROGRESS,IncidentStatus.CANCELLED},
+    IncidentStatus.REOPENED:{IncidentStatus.ASSIGNED,IncidentStatus.IN_PROGRESS,IncidentStatus.REJECTED,IncidentStatus.CANCELLED},
     IncidentStatus.CANCELLED:{IncidentStatus.REOPENED},
 }
 
@@ -84,7 +84,7 @@ def transition_incident(db:Session,incident:Incident,target:IncidentStatus,*,act
     if target not in allowed_transitions(incident):
         allowed=", ".join(sorted(item.value for item in allowed_transitions(incident))) or "none"
         raise HTTPException(409,f"Invalid incident transition {incident.status.value} -> {target.value}. Allowed: {allowed}")
-    if automatic and target!=IncidentStatus.AUTO_RESOLVED:raise HTTPException(422,"Automatic actor may only use AUTO_RESOLVED")
+    if automatic and target not in {IncidentStatus.RESOLUTION_CANDIDATE,IncidentStatus.AUTO_RESOLVED}:raise HTTPException(422,"Automatic actor may only create a resolution candidate or auto-resolve")
     if target==IncidentStatus.AUTO_RESOLVED and (incident.source!=IncidentSource.CAMERA_EVENT or not automatic):raise HTTPException(422,"AUTO_RESOLVED requires an automatic camera actor")
     if target==IncidentStatus.ASSIGNED and not (assigned_staff_id or assigned_admin_id or incident.assigned_staff_id or incident.assigned_admin_id):raise HTTPException(422,"ASSIGNED requires a staff or admin assignee")
     if target==IncidentStatus.ASSIGNED and not (responsible_department or incident.responsible_department):raise HTTPException(422,"ASSIGNED requires a responsible department")

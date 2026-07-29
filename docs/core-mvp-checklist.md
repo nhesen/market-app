@@ -29,6 +29,6 @@ Status legend: `[x]` verified, `[~]` implementation in progress, `[ ]` missing.
 
 ## Vision, OCR and analytics
 - [x] Deterministic persistence/clear-period simulator and auto-resolve test
-- [~] OpenCV MP4 loop, cameras/ROIs/rules, hazard/promo scoring and telemetry implemented; production clips/queue approximation remain
+- [x] Controlled MP4 hybrid rules, cameras/ROIs, hazard/promo/blocked scoring, evidence and telemetry; optional YOLO queue requires real local weights and production ingestion remains out of scope
 - [x] OCR image upload/preprocessing/date extraction and explicit manual fallback
 - [ ] Branch/head-office analytics and explainable score breakdown
