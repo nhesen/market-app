@@ -12,3 +12,4 @@ admin/vite.config.d.ts
 .expo/
 backend/uploads/*
 !backend/uploads/.gitkeep
+backend/backend/

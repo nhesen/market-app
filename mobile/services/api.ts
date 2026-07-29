@@ -10,8 +10,16 @@ export type HomeData={user:User;organisation?:{id:string;name:string};selected_b
 
 async function fallbackError(kind:"request"|"network"="request"){const language=await SecureStore.getItemAsync("language");if(language==="en")return kind==="network"?"Could not connect to the server":"The request could not be completed";return kind==="network"?"Serverlə əlaqə yaratmaq mümkün olmadı":"Sorğu tamamlanmadı"}
 async function parseError(response:Response){try{const body=await response.json();return typeof body.detail==="string"?body.detail:await fallbackError()}catch{return fallbackError("network")}}
-async function storeSession(data:any){await SecureStore.setItemAsync("token",data.access_token);await SecureStore.setItemAsync("session_role",data.user.role);if(data.refresh_token)await SecureStore.setItemAsync("refresh_token",data.refresh_token);return data.user as User}
+const SESSION_VERSION="2";
+async function storeSession(data:any){await SecureStore.setItemAsync("token",data.access_token);await SecureStore.setItemAsync("session_role",data.user.role);await SecureStore.setItemAsync("session_version",SESSION_VERSION);if(data.refresh_token)await SecureStore.setItemAsync("refresh_token",data.refresh_token);return data.user as User}
 export async function hasSession(){return Boolean(await SecureStore.getItemAsync("token"))}
+
+export async function restoreSession(){
+  if(await SecureStore.getItemAsync("session_version")!==SESSION_VERSION){await clearSession();return null}
+  if(!await hasSession())return null;
+  try{return await request<User>("/auth/me")}
+  catch{await clearSession();return null}
+}
 
 export async function request<T>(path:string,init?:RequestInit,retry=true):Promise<T>{
   const token=await SecureStore.getItemAsync("token");
@@ -30,7 +38,7 @@ export async function request<T>(path:string,init?:RequestInit,retry=true):Promi
 export async function login(email:string,password:string){const response=await fetch(apiRoot+"/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});if(!response.ok)throw new Error(await parseError(response));return storeSession(await response.json())}
 export async function register(body:unknown){const response=await fetch(apiRoot+"/auth/register",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});if(!response.ok)throw new Error(await parseError(response));return storeSession(await response.json())}
 export async function forgotPassword(email:string){const response=await fetch(apiRoot+"/auth/forgot-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});if(!response.ok)throw new Error(await parseError(response));return response.json()}
-export async function clearSession(){await Promise.all([SecureStore.deleteItemAsync("token"),SecureStore.deleteItemAsync("refresh_token"),SecureStore.deleteItemAsync("session_role")])}
+export async function clearSession(){await Promise.all([SecureStore.deleteItemAsync("token"),SecureStore.deleteItemAsync("refresh_token"),SecureStore.deleteItemAsync("session_role"),SecureStore.deleteItemAsync("session_version"),SecureStore.deleteItemAsync("selected_branch_id"),SecureStore.deleteItemAsync("selected_market_id")])}
 export async function sessionRole(){return SecureStore.getItemAsync("session_role")}
 export async function logout(){try{await request("/auth/logout",{method:"POST"},false)}finally{await clearSession()}}
 export async function selectedBranchId(){return SecureStore.getItemAsync("selected_branch_id")}

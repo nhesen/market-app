@@ -145,3 +145,104 @@ Rows affected by these repairs: R13 and R38 improved but remain `PARTIALLY_WORKI
 - Direct contract tests now cover selected-branch tenant validation, branch detail/services, product branch pricing, campaign detail and staff quality summary.
 - Revalidation: backend `19 passed`; mobile strict TypeScript passed; Android Expo export passed with 1,119 modules; admin production build passed with 1,638 modules.
 - Honest remaining status: R60–R62 improve from `BROKEN` to `PARTIALLY_WORKING`, not `VERIFIED_WORKING`. Forgot-password/onboarding, server-persisted notification preferences, complete AZ/EN switching, all admin CRUD families, full branch/staff/camera configuration and browser/device click-through evidence remain open.
+
+## Final release audit — 2026-07-29
+
+This section supersedes earlier implementation-pass notes for the flows and gates explicitly re-tested below. `VERIFIED_WORKING` is used only where a real FastAPI process and a clean PostgreSQL 16 Docker database completed the story and the persisted result was read back. A route or successful compilation alone is not treated as runtime verification.
+
+### Test environment and clean database evidence
+
+- Docker service: `sabahhub-db-1`, image `postgres:16-alpine`, status `healthy`, published on `5432`.
+- Isolated database: `martiq_release_qa`; it was dropped and recreated before the run.
+- `python -m alembic upgrade head` applied revisions through `0007 (head)` using `PostgresqlImpl` and transactional DDL.
+- First `python -m scripts.seed`: `Seeded 2 organisations, 4 branches and 30 products`.
+- Second `python -m scripts.seed`: `Demo data already exists`.
+- Post-seed counts: 2 organisations, 4 branches, 30 products and 6 users; the second run introduced no duplicates.
+- FastAPI ran at `http://127.0.0.1:8000`; `GET /health` returned `{"status":"ok","service":"martiq-api"}`.
+- Admin Vite ran at `http://127.0.0.1:5173`; an HTTP request returned status 200.
+- All six seeded personas used during the stories authenticated against the live server: customer, staff, branch admin, head-office admin, platform admin and the second-tenant city admin. The five required demo identities were `customer@demo.az`, `staff@demo.az`, `branch@demo.az`, `head@demo.az`, and `platform@martiq.az`.
+
+### CORE runtime stories
+
+| Story | Screen route | Live API path(s) exercised | Persisted model(s) | Automated test evidence | Observed runtime result | Final status |
+|---|---|---|---|---|---|---|
+| Customer report lifecycle | `/products` → `/product-detail` → `/report` → `/report-detail`; admin `/branch/reports` and incident detail | `GET /api/v1/products`, `GET /api/v1/products/{id}`, `POST /api/v1/reports`, `PATCH /api/v1/admin/incidents/{id}`, `GET /api/v1/reports/{id}` | `Product`, `CustomerReport`, `Incident`, `IncidentStatusHistory` | `test_customer_admin_customer_report_flow`; lifecycle transition tests | A customer created a product-linked report. Branch admin advanced the same incident through PRECHECK, VERIFICATION_REQUIRED, VERIFIED, ASSIGNED, IN_PROGRESS, RESOLUTION_CANDIDATE and MANUALLY_RESOLVED. Customer read back `RESOLVED` with an 8-entry timeline. | `VERIFIED_WORKING` at API/database level |
+| Management suggestion | `/suggestions` → `/suggestion-detail`; head-office suggestion workspace | `POST /api/v1/suggestions`, `PATCH /api/v1/admin/suggestions/{id}`, `GET /api/v1/suggestions/{id}` | `ManagementSuggestion`, `SuggestionStatusHistory`, `Notification` | `test_favourite_suggestion_and_admin_notification` | Customer submitted a suggestion; head office changed it to `PLANNED`; customer read the updated status from the live API. | `VERIFIED_WORKING` at API/database level |
+| Head-office content propagation | Head-office news/product/price/campaign pages; customer `/news`, `/products`, `/discounts` | `POST /api/v1/admin/news`, `/admin/products`, `/admin/prices`, `/admin/campaigns`, `/admin/campaigns/{id}/products`; customer list endpoints | `News`, `Product`, `ProductPrice`, `DiscountCampaign`, `DiscountCampaignProduct` | `test_head_office_content_reflects_to_customer` | Newly created news, product, branch price and discount campaign were all returned to the customer by the running server. | `VERIFIED_WORKING` at API/database level |
+| Staff camera-assisted audit | `/staff` → `/audit` | Staff audit list/start/barcode/item/complete endpoints and `POST /api/v1/ocr/image` | `AuditTask`, `AuditResultItem`, `AuditQualityFlag`, `Incident` | `test_staff_camera_audit_quality_and_incident` | Staff started a seeded task, resolved a barcode, sent an actual repository image to OCR, received the honestly labelled `manual-fallback` engine result, explicitly confirmed an expired item, completed the required count, and produced a `STAFF_AUDIT` incident visible to branch admin. | `VERIFIED_WORKING` for live API/database flow; physical-device camera interaction not directly observed |
+| Camera persistence lifecycle | Admin camera/rule/event and incident routes | `POST /api/v1/admin/cameras`, camera-rule creation, `POST /api/v1/admin/camera-rules/{id}/process`, incident reopen | `Camera`, `CameraRule`, `CameraEvent`, `CameraClipMetadata`, `Incident` | `test_controlled_spill_segmentation_persists_stores_evidence_and_resolves` and camera false-alert/telemetry tests | The controlled spill video was processed by `OPENCV_HSV_SEGMENTATION`. Trigger persistence opened an incident, evidence metadata was stored, clear persistence moved it to `AUTO_RESOLVED`, and an admin then reopened it. | `VERIFIED_WORKING` for controlled MP4 processing; this is not claimed as RTSP or a custom YOLO spill model |
+| Tenant and branch isolation | Role-specific admin routes | Tenant-scoped incident listing and incident mutation endpoints | `Organisation`, `Branch`, tenant/branch foreign keys on incident data | `test_cross_tenant_and_cross_branch_incidents_are_isolated`, `test_head_office_cannot_cross_organisation` | Second-tenant incident IDs and NOVA incident IDs were disjoint; branch-admin cross-branch mutation returned 404; customer access to admin incidents returned 403. | `VERIFIED_WORKING` |
+
+The screen-route column records the implemented UI entry points, while the observed-result column records the independently executed HTTP/database story. Interactive browser click-through could not be captured because the audit environment reported `No browser is available`. The Expo Android bundle was produced, but no physical Android camera session was available. Consequently, visual rendering and device-camera ergonomics are not promoted to `VERIFIED_WORKING` by this audit.
+
+### Release gates and exact outputs
+
+```text
+docker compose ps
+sabahhub-db-1  postgres:16-alpine  ...  Up ... (healthy)  0.0.0.0:5432->5432/tcp
+
+python -m alembic check
+No new upgrade operations detected.
+
+python -m pytest -q
+................................. [100%]
+33 passed, 94 warnings in 15.07s
+
+python -m pytest -q tests/test_content_crud_upload.py::test_upload_validation tests/test_security_media_reaudit.py::test_uploaded_asset_is_linked_only_to_owners_report
+.. [100%]
+2 passed, 5 warnings in 3.07s
+
+cd admin; npm run lint
+eslint src --max-warnings 0
+exit 0
+
+cd admin; npm run build
+1644 modules transformed
+dist/assets/index-24CJ-q3N.js  282.00 kB | gzip: 86.45 kB
+built in 3.82s
+
+cd mobile; npm run check:i18n
+Translation integrity passed: 237 AZ keys / 237 EN keys
+
+cd mobile; npm run lint
+eslint app components services constants locales --max-warnings 0
+exit 0
+
+cd mobile; npm run typecheck
+tsc --noEmit
+exit 0
+
+cd mobile; npx expo-doctor
+Running 18 checks on your project...
+18/18 checks passed. No issues detected!
+
+cd mobile; npx expo export --platform android
+Android Bundled ... node_modules/expo-router/entry.js (1132 modules)
+Exported: dist
+```
+
+The 94 backend warnings originate from `python-jose`, whose installed dependency still calls deprecated `datetime.utcnow()` internally. Repository application code uses timezone-aware UTC handling; the remaining warning is external dependency behaviour.
+
+### Integrity checks
+
+```text
+Mobile routes: 14; missing: none
+Admin route markers: 11; missing: none
+OpenAPI paths: 105; required missing: none
+```
+
+The route check covered the CORE mobile routes, the three admin role prefixes and their relevant feature markers, and the live OpenAPI paths used by authentication, reports, suggestions, content, staff OCR/audits and camera processing. Upload security was executed separately against file-type validation and owner-only media binding, with both tests passing. Generated `admin/dist`, `mobile/dist`, caches and QA artifacts remained untracked; `git status --short` was empty before this document update.
+
+### Approved post-release / external integration work only
+
+- Live POS/ERP catalogue, price and stock synchronisation.
+- Production loyalty-provider/card integration; the present flow is explicitly simulated.
+- Production email/SMS delivery for password recovery and transactional notifications.
+- Push-notification provider credentials and delivery infrastructure.
+- Production object storage/CDN and retention policy integration.
+- Maps/geocoding provider integration.
+- RTSP/NVR camera connectivity and production deployment calibration.
+- A production OCR service and any custom hazard model only after a labelled retail dataset, validated weights and measured accuracy are available.
+- Approved Phase 2/3 advanced analytics, hardware pilots and model-operations work.
+
+No unresolved CORE API/database failure was observed in this release audit. Interactive visual acceptance on a browser and physical Android camera acceptance remain release-environment evidence tasks, not claims of completed external integration.

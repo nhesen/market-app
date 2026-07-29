@@ -1,14 +1,30 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { router, Stack, usePathname } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import * as SecureStore from "expo-secure-store";
 import { I18nProvider } from "../services/i18n";
-import { sessionRole } from "../services/api";
+import { restoreSession } from "../services/api";
 
 const client = new QueryClient({defaultOptions:{queries:{staleTime:30000,retry:1}}});
 
 function RoleGate() {
   const path = usePathname();
-  useEffect(() => { if (path === "/") sessionRole().then(role => { if (role === "STAFF") router.replace("/staff"); }); }, [path]);
+  const [ready,setReady]=useState(path!=="/");
+  useEffect(() => {
+    if(path!=="/"){setReady(true);return}
+    let active=true;
+    (async()=>{
+      const seen=await SecureStore.getItemAsync("onboarding_seen");
+      if(!seen){if(active)setReady(true);return}
+      const user=await restoreSession();
+      if(!active)return;
+      if(!user){router.replace("/login");return}
+      if(user.role==="STAFF"){router.replace("/staff");return}
+      setReady(true);
+    })().catch(()=>{if(active)router.replace("/login")});
+    return()=>{active=false};
+  }, [path]);
+  if(!ready)return null;
   return <Stack screenOptions={{headerShown:false,animation:"slide_from_right"}}/>;
 }
 
