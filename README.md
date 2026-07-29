@@ -59,7 +59,9 @@ python -m scripts.seed
 python -m alembic check
 ```
 
-The current verified PostgreSQL run reached Alembic revision `0009 (head)`. The customer demo contains two switchable markets, four branches, 30 products, market-scoped campaigns/cards/offers, and idempotent enrichment; repeated seed runs print `Demo data already exists` without duplicating records. Customer market selection is stored separately from tenant ownership through `selected_organisation_id` and `customer_market_memberships`.
+The 2026-07-29 clean PostgreSQL re-audit reached Alembic revision `0009 (head)` and `alembic check` printed `No new upgrade operations detected.` The first clean attempt exposed duplicate-column assumptions in revisions 0008/0009 because the baseline creates current metadata; those revisions now inspect the schema before adding their objects. A second newly-created database migrated from zero through 0009 successfully.
+
+The first seed printed `Seeded 2 organisations, 4 branches and 30 products`; the second printed `Demo data already exists`. Counts stayed `2 organisations / 4 branches / 30 products / 6 users / 2 memberships`, proving idempotency for the seeded rows. Customer market selection is stored separately from tenant ownership through `selected_organisation_id` and `customer_market_memberships`.
 
 ## Unified incident lifecycle
 
@@ -97,7 +99,16 @@ npm run typecheck
 npx expo-doctor
 ```
 
-The last verified results were: backend `36 passed`; real PostgreSQL upgrades reached `0009 (head)`; Alembic reported `No new upgrade operations detected`; admin lint and production build passed; mobile lint and strict TypeScript passed.
+The current 2026-07-29 results are:
+
+- backend: `36 passed, 105 warnings in 15.55s`; warnings originate from `python-jose` using deprecated timezone-naive UTC internally;
+- migration: `0009 (head)` and no Alembic drift;
+- admin: ESLint exited 0; Vite 6.4.3 built 1,645 modules in 3.33s (`290.96 kB`, gzip `88.38 kB` JavaScript);
+- mobile: ESLint exited 0; strict TypeScript exited 0; Expo Doctor passed `18/18` checks;
+- translations: `237 AZ keys / 237 EN keys`;
+- runtime auth: all five demo accounts passed login, refresh, `/auth/me`, and logout against the clean PostgreSQL database.
+
+The same live run proved that switching between Nova Market and CityMart changes market-scoped product, campaign, card and branch results while leaving `User.organisation_id` unchanged. It also proved branch and organisation isolation with cross-scope requests returning 404, platform cross-tenant organisation/admin activation, content edit/delete, incident assignment/rejection/manual-resolution/reopen, and filtered operational analytics matching direct database counts. Full evidence and genuine remaining gaps are in [the compliance audit](docs/compliance-audit.md).
 
 ## Honest limitations
 

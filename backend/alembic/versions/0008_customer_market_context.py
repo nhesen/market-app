@@ -12,21 +12,31 @@ branch_labels=None
 depends_on=None
 
 def upgrade():
-    op.add_column("users",sa.Column("selected_organisation_id",sa.String(36),sa.ForeignKey("organisations.id"),nullable=True))
-    op.create_index("ix_users_selected_organisation_id","users",["selected_organisation_id"])
-    op.create_table("customer_market_memberships",
-        sa.Column("id",sa.String(36),primary_key=True),
-        sa.Column("customer_id",sa.String(36),sa.ForeignKey("users.id"),nullable=False),
-        sa.Column("organisation_id",sa.String(36),sa.ForeignKey("organisations.id"),nullable=False),
-        sa.Column("is_active",sa.Boolean(),nullable=False,server_default=sa.true()),
-        sa.Column("joined_at",sa.DateTime(),nullable=False),
-        sa.UniqueConstraint("customer_id","organisation_id",name="uq_customer_market_membership"))
-    op.create_index("ix_customer_market_memberships_customer_id","customer_market_memberships",["customer_id"])
-    op.create_index("ix_customer_market_memberships_organisation_id","customer_market_memberships",["organisation_id"])
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    user_columns = {item["name"] for item in inspector.get_columns("users")}
+    tables = set(inspector.get_table_names())
+    if "selected_organisation_id" not in user_columns:
+        op.add_column("users",sa.Column("selected_organisation_id",sa.String(36),sa.ForeignKey("organisations.id"),nullable=True))
+        op.create_index("ix_users_selected_organisation_id","users",["selected_organisation_id"])
+    if "customer_market_memberships" not in tables:
+        op.create_table("customer_market_memberships",
+            sa.Column("id",sa.String(36),primary_key=True),
+            sa.Column("customer_id",sa.String(36),sa.ForeignKey("users.id"),nullable=False),
+            sa.Column("organisation_id",sa.String(36),sa.ForeignKey("organisations.id"),nullable=False),
+            sa.Column("is_active",sa.Boolean(),nullable=False,server_default=sa.true()),
+            sa.Column("joined_at",sa.DateTime(),nullable=False),
+            sa.UniqueConstraint("customer_id","organisation_id",name="uq_customer_market_membership"))
+        op.create_index("ix_customer_market_memberships_customer_id","customer_market_memberships",["customer_id"])
+        op.create_index("ix_customer_market_memberships_organisation_id","customer_market_memberships",["organisation_id"])
     op.execute("UPDATE users SET selected_organisation_id = organisation_id WHERE role = 'CUSTOMER'")
     op.execute("INSERT INTO customer_market_memberships (id, customer_id, organisation_id, is_active, joined_at) SELECT md5(id || organisation_id), id, organisation_id, true, CURRENT_TIMESTAMP FROM users WHERE role = 'CUSTOMER' AND organisation_id IS NOT NULL")
 
 def downgrade():
-    op.drop_table("customer_market_memberships")
-    op.drop_index("ix_users_selected_organisation_id",table_name="users")
-    op.drop_column("users","selected_organisation_id")
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if "customer_market_memberships" in inspector.get_table_names():
+        op.drop_table("customer_market_memberships")
+    if "selected_organisation_id" in {item["name"] for item in inspector.get_columns("users")}:
+        op.drop_index("ix_users_selected_organisation_id", table_name="users")
+        op.drop_column("users", "selected_organisation_id")
