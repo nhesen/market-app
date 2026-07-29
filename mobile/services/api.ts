@@ -4,7 +4,7 @@ export const apiRoot=process.env.EXPO_PUBLIC_API_URL??"http://localhost:8000/api
 export const serverRoot=apiRoot.replace(/\/api\/v1\/?$/,"");
 
 export type User={id:string;email:string;full_name:string;phone?:string;language:"az"|"en";role:string;organisation_id?:string;profile_image_url?:string;preferred_branch_id?:string};
-export type Branch={id:string;name:string;address:string;hours:string;distance_km:number;is_open:boolean;services?:string[]};
+export type Branch={id:string;name:string;address:string;hours:string;distance_km:number;is_open:boolean;image_url?:string;services?:string[]};
 export type Product={id:string;name:string;brand:string;barcode:string;category:string;price:number;discount_price?:number;image_url?:string;available?:boolean;branches?:Array<{branch_id:string;branch_name:string;price:number;previous_price?:number;available:boolean}>};
 export type HomeData={user:User;organisation?:{id:string;name:string};selected_branch?:Branch;news:any[];products:Product[];discounts:Product[];branches:Branch[];loyalty:any;reports:any[]};
 

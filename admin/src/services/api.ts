@@ -2,6 +2,7 @@ export type Role="BRANCH_ADMIN"|"HEAD_OFFICE_ADMIN"|"PLATFORM_ADMIN";
 export type AdminUser={id:string;email:string;full_name:string;role:Role;organisation_id:string|null;branch_id:string|null};
 export type Incident={id:string;branch_id:string;source:string;category:string;title:string;description:string;priority:string;status:string;responsible_department?:string;assigned_staff_id?:string;assigned_admin_id?:string;sla_due_at?:string;is_overdue:boolean;rejection_reason?:string;resolution_reason?:string;reopening_reason?:string;resolution_actor_type?:string;created_at:string;allowed_transitions:string[];history:Array<{from_status?:string;status:string;note:string;internal_note?:string;customer_note?:string;actor_type:string;created_at:string}>;notes:Array<{id:string;visibility:string;note:string;created_at:string}>;attachments:Array<{url:string;mime_type:string;name:string}>};
 const root=import.meta.env.VITE_API_URL??"http://localhost:8000/api/v1";
+export const mediaUrl=(value?:string)=>value?(/^https?:/.test(value)?value:root.replace(/\/api\/v1\/?$/,"")+value):"";
 let token=localStorage.getItem("martiq_admin_token")??"";
 
 async function request<T>(path:string,init:RequestInit={}):Promise<T>{

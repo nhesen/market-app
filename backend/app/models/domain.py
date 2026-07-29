@@ -86,7 +86,7 @@ class News(Base):
     title_en: Mapped[str] = mapped_column(String(180))
     summary_az: Mapped[str] = mapped_column(Text)
     summary_en: Mapped[str] = mapped_column(Text)
-    image_url: Mapped[str] = mapped_column(String(255), default="/assets/news-market.svg")
+    image_url: Mapped[str] = mapped_column(String(255), default="/assets/retail-news-v2.png")
     published_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
 
@@ -100,7 +100,7 @@ class Product(Base):
     category: Mapped[str] = mapped_column(String(80))
     price: Mapped[float] = mapped_column(Float)
     discount_price: Mapped[float | None] = mapped_column(Float, nullable=True)
-    image_url: Mapped[str] = mapped_column(String(255), default="/assets/product.svg")
+    image_url: Mapped[str] = mapped_column(String(255), default="/assets/retail-products-v2.png")
 
 
 class LoyaltyCard(Base):

@@ -108,7 +108,7 @@ def branch_detail(branch_id:str,user:User=Depends(current_user),db:Session=Depen
     branch=db.scalar(select(Branch).where(Branch.id==branch_id,Branch.organisation_id==user.organisation_id))
     if not branch:raise HTTPException(404,"Branch not found")
     services=db.scalars(select(BranchService).where(BranchService.branch_id==branch.id,BranchService.organisation_id==user.organisation_id)).all()
-    return {"id":branch.id,"name":branch.name,"address":branch.address,"hours":branch.hours,"distance_km":branch.distance_km,"is_open":branch.is_open,"services":[item.name for item in services]}
+    return {"id":branch.id,"name":branch.name,"address":branch.address,"hours":branch.hours,"distance_km":branch.distance_km,"is_open":branch.is_open,"image_url":"/assets/retail-branch-v2.png","services":[item.name for item in services]}
 
 @router.get("/favourites/products")
 def favourites(user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):

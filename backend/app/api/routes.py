@@ -52,7 +52,8 @@ def change_password(data:ChangePasswordIn,user:User=Depends(current_user),db:Ses
 
 @router.get("/branches")
 def branches(user: User = Depends(current_user), db: Session = Depends(get_db)):
-    return db.scalars(select(Branch).where(Branch.organisation_id == user.organisation_id)).all()
+    rows=db.scalars(select(Branch).where(Branch.organisation_id==user.organisation_id)).all()
+    return [{"id":x.id,"name":x.name,"address":x.address,"hours":x.hours,"distance_km":x.distance_km,"is_open":x.is_open,"image_url":"/assets/retail-branch-v2.png"} for x in rows]
 
 @router.get("/home")
 def home(branch_id:str|None=Query(None),user: User = Depends(roles(Role.CUSTOMER)), db: Session = Depends(get_db)):

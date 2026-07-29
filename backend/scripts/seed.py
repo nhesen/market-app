@@ -19,17 +19,13 @@ CATALOG=[
 ]
 
 def product_asset(category:str)->str:
-    if "Süd" in category:return "/assets/product-dairy.svg"
-    if "İçki" in category:return "/assets/product-beverage.svg"
-    if "qulluq" in category or "Təmizlik" in category:return "/assets/product-care.svg"
-    return "/assets/product-food.svg"
+    return "/assets/retail-products-v2.png"
 
 def enrich_customer_demo(db):
     nova=db.scalar(select(Organisation).where(Organisation.name=="Nova Market"));city=db.scalar(select(Organisation).where(Organisation.name=="CityMart"));customer=db.scalar(select(User).where(User.email=="customer@demo.az"))
     if not nova or not city or not customer:return
-    for product in db.scalars(select(Product).where(Product.organisation_id==nova.id)).all():product.image_url=product_asset(product.category)
-    news=db.scalars(select(News).where(News.organisation_id==nova.id).order_by(News.published_at)).all()
-    for index,item in enumerate(news):item.image_url="/assets/news-hours.svg" if index==0 else "/assets/news-recycling.svg"
+    for product in db.scalars(select(Product)).all():product.image_url=product_asset(product.category)
+    for item in db.scalars(select(News)).all():item.image_url="/assets/retail-news-v2.png"
     city_branch=db.scalar(select(Branch).where(Branch.organisation_id==city.id))
     city_products=db.scalars(select(Product).where(Product.organisation_id==city.id)).all()
     if not city_products:
@@ -38,7 +34,7 @@ def enrich_customer_demo(db):
             item=Product(organisation_id=city.id,name=name,brand=brand,barcode=f"86900000{index:05d}",category=category,price=price,discount_price=round(price*.82,2) if index%2==0 else None,image_url=product_asset(category));db.add(item);city_products.append(item)
         db.flush();db.add_all([ProductCategory(organisation_id=city.id,name=x) for x in sorted({p.category for p in city_products})])
         for p in city_products:db.add(ProductPrice(organisation_id=city.id,branch_id=city_branch.id,product_id=p.id,price=p.price,previous_price=round(p.price*1.08,2),available=True))
-    if not db.scalar(select(News).where(News.organisation_id==city.id)):db.add(News(organisation_id=city.id,branch_id=city_branch.id,title_az="CityMart Gənclik yeniləndi",title_en="CityMart Ganjlik refreshed",summary_az="Yeni self-checkout zonası və təkrar emal nöqtəsi istifadəyə verildi.",summary_en="A new self-checkout area and recycling point are now available.",image_url="/assets/news-recycling.svg"))
+    if not db.scalar(select(News).where(News.organisation_id==city.id)):db.add(News(organisation_id=city.id,branch_id=city_branch.id,title_az="CityMart Gənclik yeniləndi",title_en="CityMart Ganjlik refreshed",summary_az="Yeni self-checkout zonası və təkrar emal nöqtəsi istifadəyə verildi.",summary_en="A new self-checkout area and recycling point are now available.",image_url="/assets/retail-news-v2.png"))
     if not db.scalar(select(DiscountCampaign).where(DiscountCampaign.organisation_id==city.id)):
         campaign=DiscountCampaign(organisation_id=city.id,title="City həftəsonu",description="Seçilmiş məhsullarda həftəsonu qiymətləri",starts_on=date.today()-timedelta(days=1),ends_on=date.today()+timedelta(days=12));db.add(campaign);db.flush();db.add_all([DiscountCampaignProduct(organisation_id=city.id,campaign_id=campaign.id,product_id=p.id,branch_id=city_branch.id,discount_price=round(p.price*.82,2)) for p in city_products[:4]])
     if not db.scalar(select(LoyaltyCard).where(LoyaltyCard.user_id==customer.id,LoyaltyCard.organisation_id==city.id)):db.add(LoyaltyCard(organisation_id=city.id,user_id=customer.id,label="City Bonus",card_number="8800123400000001",balance=680,monthly_earned=95,expiring=35,expiring_on=utc_now()+timedelta(days=40)))

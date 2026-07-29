@@ -3,7 +3,8 @@
   "scripts": {
     "start": "expo start",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint app components services constants locales --max-warnings 0"
+    "lint": "eslint app components services constants locales --max-warnings 0",
+    "check:i18n": "node scripts/check-translations.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "15.0.3",

@@ -12,8 +12,8 @@ from app.services.storage import storage
 router=APIRouter(prefix="/api/v1")
 ADMINS=(Role.BRANCH_ADMIN,Role.HEAD_OFFICE_ADMIN,Role.PLATFORM_ADMIN)
 CONTENT_ADMINS=(Role.HEAD_OFFICE_ADMIN,Role.PLATFORM_ADMIN)
-class ProductIn(BaseModel): name:str=Field(min_length=2,max_length=180);brand:str=Field(min_length=2,max_length=120);barcode:str=Field(min_length=6,max_length=32);category:str;price:float=Field(gt=0);discount_price:float|None=None;image_url:str="/assets/product.svg"
-class NewsIn(BaseModel): title_az:str;title_en:str;summary_az:str;summary_en:str;branch_id:str|None=None;image_url:str="/assets/news-market.svg"
+class ProductIn(BaseModel): name:str=Field(min_length=2,max_length=180);brand:str=Field(min_length=2,max_length=120);barcode:str=Field(min_length=6,max_length=32);category:str;price:float=Field(gt=0);discount_price:float|None=None;image_url:str="/assets/retail-products-v2.png"
+class NewsIn(BaseModel): title_az:str;title_en:str;summary_az:str;summary_en:str;branch_id:str|None=None;image_url:str="/assets/retail-news-v2.png"
 class PriceIn(BaseModel): branch_id:str;product_id:str;price:float=Field(gt=0);previous_price:float|None=None;available:bool=True
 class CampaignIn(BaseModel): title:str;description:str;starts_on:date;ends_on:date;published:bool=True
 class CampaignProductIn(BaseModel): product_id:str;branch_id:str;discount_price:float=Field(gt=0)
@@ -56,7 +56,7 @@ def discounts(category:str|None=None,user:User=Depends(current_user),db:Session=
         if category:stmt=stmt.where(Product.category==category)
         items=db.execute(stmt).all()
         if category and not items:continue
-        branch_map={branch.id:branch.name for _,_,branch in items};out.append({"id":c.id,"title":c.title,"description":c.description,"image_url":"/assets/campaign-week.svg","starts_on":c.starts_on,"ends_on":c.ends_on,"products":[{"id":p.id,"name":p.name,"brand":p.brand,"category":p.category,"image_url":p.image_url,"original_price":p.price,"discount_price":link.discount_price,"branch_id":link.branch_id,"branch_name":branch.name} for link,p,branch in items],"branches":[{"id":key,"name":value} for key,value in branch_map.items()]})
+        branch_map={branch.id:branch.name for _,_,branch in items};out.append({"id":c.id,"title":c.title,"description":c.description,"image_url":"/assets/retail-campaign-v2.png","starts_on":c.starts_on,"ends_on":c.ends_on,"products":[{"id":p.id,"name":p.name,"brand":p.brand,"category":p.category,"image_url":p.image_url,"original_price":p.price,"discount_price":link.discount_price,"branch_id":link.branch_id,"branch_name":branch.name} for link,p,branch in items],"branches":[{"id":key,"name":value} for key,value in branch_map.items()]})
     return out
 
 @router.get("/discounts/{campaign_id}")
