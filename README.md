@@ -59,7 +59,7 @@ python -m scripts.seed
 python -m alembic check
 ```
 
-The current verified PostgreSQL run reached Alembic revision `0007 (head)`. The customer demo contains two switchable markets, four branches, 30 products, market-scoped campaigns/cards/offers, and idempotent enrichment; repeated seed runs print `Demo data already exists` without duplicating records.
+The current verified PostgreSQL run reached Alembic revision `0009 (head)`. The customer demo contains two switchable markets, four branches, 30 products, market-scoped campaigns/cards/offers, and idempotent enrichment; repeated seed runs print `Demo data already exists` without duplicating records. Customer market selection is stored separately from tenant ownership through `selected_organisation_id` and `customer_market_memberships`.
 
 ## Unified incident lifecycle
 
@@ -97,7 +97,7 @@ npm run typecheck
 npx expo-doctor
 ```
 
-The last verified results were: backend `33 passed`; real PostgreSQL clean and existing-database upgrades reached `0007 (head)`; Alembic reported `No new upgrade operations detected`; admin lint and production build passed; mobile lint and strict TypeScript passed.
+The last verified results were: backend `36 passed`; real PostgreSQL upgrades reached `0009 (head)`; Alembic reported `No new upgrade operations detected`; admin lint and production build passed; mobile lint and strict TypeScript passed.
 
 ## Honest limitations
 

@@ -11,9 +11,10 @@ Status legend: `[x]` verified, `[~]` implementation in progress, `[ ]` missing.
 
 ## Customer
 - [x] API-driven home, secure demo login, report creation and timeline
-- [~] Products/search/barcode, news details, branches, favourites, profile
-- [~] Suggestions, notifications, loyalty details and transactions
-- [~] Login, registration and role redirect implemented; richer onboarding/market preference remains
+- [x] Products/search/barcode, news details, branches, favourites and profile flows
+- [x] Suggestions, notifications, market-scoped loyalty details and transactions
+- [x] Login, registration, verified session restore, onboarding and persistent market/branch preference
+- [x] Universal customer market context is separated from tenant ownership through membership and selected-market fields
 - [x] Expo Camera barcode/date capture, media upload, OCR/manual confirmation and expired-result report handoff
 
 ## Staff
@@ -22,13 +23,13 @@ Status legend: `[x]` verified, `[~]` implementation in progress, `[ ]` missing.
 
 ## Admin
 - [x] Incident list/detail and status actions
-- [~] Incident and suggestion operational views implemented; richer media case viewer remains
-- [~] Product/news/price/campaign CRUD APIs and content inventory UI implemented; branch editor forms remain
-- [ ] Audit management and quality review
-- [ ] Head-office comparison and platform tenant management
+- [x] Incident/suggestion operational views, media viewer, lifecycle timeline and modal transition forms
+- [x] Product/news/price/campaign CRUD APIs with modal edit and destructive confirmation UX
+- [x] Audit management, quality flags and re-audit review
+- [x] Head-office comparison plus platform tenant/admin create, edit and deactivate management
 
 ## Vision, OCR and analytics
 - [x] Deterministic persistence/clear-period simulator and auto-resolve test
 - [x] Controlled MP4 hybrid rules, cameras/ROIs, hazard/promo/blocked scoring, evidence and telemetry; optional YOLO queue requires real local weights and production ingestion remains out of scope
 - [x] OCR image upload/preprocessing/date extraction and explicit manual fallback
-- [ ] Branch/head-office analytics and explainable score breakdown
+- [x] Branch/head-office analytics, resolution/SLA/verification/re-audit breakdowns, filters and explainable score

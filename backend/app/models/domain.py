@@ -1,7 +1,7 @@
 import enum
 import uuid
 from datetime import datetime
-from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.session import Base
 from app.core.time import utc_now
@@ -46,6 +46,7 @@ class Organisation(Base):
     __tablename__ = "organisations"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     name: Mapped[str] = mapped_column(String(160), unique=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
 
@@ -64,6 +65,7 @@ class User(Base):
     __tablename__ = "users"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     organisation_id: Mapped[str | None] = mapped_column(ForeignKey("organisations.id"), index=True, nullable=True)
+    selected_organisation_id: Mapped[str | None] = mapped_column(ForeignKey("organisations.id"), index=True, nullable=True)
     branch_id: Mapped[str | None] = mapped_column(ForeignKey("branches.id"), index=True, nullable=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
     full_name: Mapped[str] = mapped_column(String(160))
@@ -75,6 +77,16 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[Role] = mapped_column(Enum(Role))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class CustomerMarketMembership(Base):
+    __tablename__ = "customer_market_memberships"
+    __table_args__ = (UniqueConstraint("customer_id","organisation_id",name="uq_customer_market_membership"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    customer_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    organisation_id: Mapped[str] = mapped_column(ForeignKey("organisations.id"), index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    joined_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
 
 
 class News(Base):

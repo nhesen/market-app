@@ -1,6 +1,9 @@
 from pathlib import Path
+from collections import Counter
+from datetime import datetime
+from statistics import median
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
@@ -13,6 +16,7 @@ from app.models.domain import Branch, CustomerReport, Incident, Organisation, Ro
 from app.models.retail import AuditLog, FileAsset, OrganisationModule, SystemSetting
 from app.models.vision import Camera
 from app.services.incidents import report_view
+from app.core.time import as_utc, utc_now
 
 router = APIRouter(prefix="/api/v1")
 ADMINS = (Role.BRANCH_ADMIN, Role.HEAD_OFFICE_ADMIN, Role.PLATFORM_ADMIN)
@@ -100,6 +104,27 @@ def network_analytics(user: User = Depends(roles(Role.HEAD_OFFICE_ADMIN)), db: S
         score = max(0, 100-high*10-max(0, open_count-high)*3-flags*2)
         output.append({"branch_id": branch.id, "branch": branch.name, "open_incidents": open_count, "high_risk": high, "quality_flags": flags, "score": score})
     return output
+
+@router.get("/admin/operational-analytics")
+def operational_analytics(branch_id:str|None=None,status:str|None=None,source:str|None=None,category:str|None=None,date_from:datetime|None=Query(None),date_to:datetime|None=Query(None),user:User=Depends(roles(*TENANT_ADMINS)),db:Session=Depends(get_db)):
+    stmt=scoped(select(Incident),user,Incident)
+    if branch_id:
+        branch=db.get(Branch,branch_id)
+        if not allowed_branch(user,branch):raise HTTPException(404,"Branch not found")
+        stmt=stmt.where(Incident.branch_id==branch_id)
+    if status:stmt=stmt.where(Incident.status==status)
+    if source:stmt=stmt.where(Incident.source==source)
+    if category:stmt=stmt.where(Incident.category==category)
+    if date_from:stmt=stmt.where(Incident.created_at>=date_from)
+    if date_to:stmt=stmt.where(Incident.created_at<=date_to)
+    rows=db.scalars(stmt.order_by(Incident.created_at)).unique().all();now=utc_now()
+    closed={"MANUALLY_RESOLVED","AUTO_RESOLVED","REJECTED","CANCELLED"};resolved=[x for x in rows if x.status.value in {"MANUALLY_RESOLVED","AUTO_RESOLVED"}]
+    resolution_hours=[round((as_utc(x.updated_at)-as_utc(x.created_at)).total_seconds()/3600,2) for x in resolved]
+    re_stmt=scoped(select(ReAudit),user,ReAudit);re_rows=db.scalars(re_stmt).all();completed_re=[x for x in re_rows if x.consistent is not None]
+    verification_candidates=[x for x in rows if x.source.value=="CUSTOMER_REPORT" and any(h.status.value=="RESOLUTION_CANDIDATE" for h in x.history)]
+    verified_customers=[x for x in verification_candidates if x.status.value in {"MANUALLY_RESOLVED","REOPENED"}]
+    count=lambda values,key:[{"name":name,"value":value} for name,value in sorted(Counter(key(x) for x in values).items())]
+    return {"filters":{"branch_id":branch_id,"status":status,"source":source,"category":category,"date_from":date_from,"date_to":date_to},"summary":{"total":len(rows),"open":sum(x.status.value not in closed for x in rows),"overdue":sum(bool(x.sla_due_at and as_utc(x.sla_due_at)<now and x.status.value not in closed) for x in rows),"resolved":len(resolved),"average_resolution_hours":round(sum(resolution_hours)/len(resolution_hours),2) if resolution_hours else 0,"median_resolution_hours":round(median(resolution_hours),2) if resolution_hours else 0,"auto_resolved":sum(x.status.value=="AUTO_RESOLVED" for x in rows),"manual_resolved":sum(x.status.value=="MANUALLY_RESOLVED" for x in rows),"customer_verification_rate":round(len(verified_customers)/len(verification_candidates)*100,1) if verification_candidates else 0,"re_audit_consistency_rate":round(sum(bool(x.consistent) for x in completed_re)/len(completed_re)*100,1) if completed_re else 0},"by_source":count(rows,lambda x:x.source.value),"by_status":count(rows,lambda x:x.status.value),"by_category":count(rows,lambda x:x.category),"by_hour":count(rows,lambda x:f"{as_utc(x.created_at).hour:02d}:00"),"recurring_issues":sorted(count(rows,lambda x:x.category),key=lambda x:x["value"],reverse=True)[:5]}
 
 
 @router.get("/platform/organisations/{organisation_id}")

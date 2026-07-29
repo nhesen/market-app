@@ -1,6 +1,6 @@
 from sqlalchemy import select
 from app.db.session import SessionLocal
-from app.models.domain import Organisation, Product
+from app.models.domain import CustomerMarketMembership, Organisation, Product, User
 
 def auth(token): return {"Authorization":f"Bearer {token}"}
 
@@ -40,3 +40,21 @@ def test_customer_detail_endpoints_and_selected_branch(client,customer_token):
     campaigns=client.get("/api/v1/discounts",headers=headers).json()
     assert campaigns and client.get(f'/api/v1/discounts/{campaigns[0]["id"]}',headers=headers).status_code==200
     assert client.get("/api/v1/home?branch_id=not-this-tenant",headers=headers).status_code==404
+
+def test_market_selection_does_not_mutate_tenant_ownership_and_scopes_loyalty(client,customer_token):
+    headers=auth(customer_token)
+    with SessionLocal() as db:
+        customer=db.scalar(select(User).where(User.email=="customer@demo.az"));original_owner=customer.organisation_id
+        city=db.scalar(select(Organisation).where(Organisation.name=="CityMart"));nova=db.scalar(select(Organisation).where(Organisation.name=="Nova Market"))
+    changed=client.patch("/api/v1/profile/preferred-market",headers=headers,json={"organisation_id":city.id})
+    assert changed.status_code==200
+    city_cards=client.get("/api/v1/loyalty/cards",headers=headers).json()
+    city_home=client.get("/api/v1/home",headers=headers).json()
+    assert city_cards and {card["organisation_id"] for card in city_cards}=={city.id}
+    assert city_home["organisation"]["id"]==city.id and city_home["loyalty"]["organisation_id"]==city.id
+    with SessionLocal() as db:
+        customer=db.scalar(select(User).where(User.email=="customer@demo.az"))
+        memberships=db.scalars(select(CustomerMarketMembership).where(CustomerMarketMembership.customer_id==customer.id)).all()
+        assert customer.organisation_id==original_owner and customer.selected_organisation_id==city.id
+        assert {item.organisation_id for item in memberships}>={city.id,nova.id}
+    assert client.patch("/api/v1/profile/preferred-market",headers=headers,json={"organisation_id":nova.id}).status_code==200

@@ -11,9 +11,9 @@ The implemented MVP slices pass automated functional, type and build validation.
 
 | Area | Command | Result |
 |---|---|---|
-| Backend | `python -m pytest -q` | **16 passed** |
+| Backend | `python -m pytest -q` | **36 passed** |
 | Python syntax/imports | `python -m compileall -q app scripts` | **Passed** |
-| Migrations | `python -m alembic upgrade head` on Docker PostgreSQL | **0001–0004 passed; no drift** |
+| Migrations | `python -m alembic upgrade head` on Docker PostgreSQL | **0001–0009 passed; no drift** |
 | Seed | `python -m scripts.seed` twice | **2 switchable markets, 4 branches, 30 products; second run idempotent** |
 | Mobile types | `npm run typecheck` | **Passed** |
 | Expo compatibility | `npx expo-doctor` | **18/18 checks passed** |
@@ -42,9 +42,9 @@ The implemented MVP slices pass automated functional, type and build validation.
 2. React Native `0.76.5` did not match Expo SDK 52 expected patch; upgraded through `expo install` to `0.76.9`.
 3. Home quick actions and Prices/Cards/Profile navigation were not connected.
 4. Mobile home silently forced the demo customer after any error; it now routes to login.
-5. Mobile login/register and staff role routing were absent.
+5. Mobile login/register, verified session restore and staff role routing are present and revalidated.
 6. Report uploads existed but were not linked to incidents; `IncidentAttachment` and ownership checks were added.
-7. Re-audit consistency and employee quality-score paths were absent.
+7. Re-audit consistency, employee quality-score and head-office operational analytics paths are present and tested.
 8. Tests did not prove cross-tenant/cross-branch isolation or real MP4 decoding; both are now covered.
 
 ## Dependency security review

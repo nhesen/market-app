@@ -4,7 +4,7 @@ from app.core.security import hash_password
 from app.db.session import Base,SessionLocal,engine
 from app.models.audit import AuditTask
 from app.models.customer import Notification
-from app.models.domain import Branch,CustomerReport,Incident,IncidentSource,IncidentStatus,IncidentStatusHistory,LoyaltyCard,News,Organisation,Product,Role,User
+from app.models.domain import Branch,CustomerMarketMembership,CustomerReport,Incident,IncidentSource,IncidentStatus,IncidentStatusHistory,LoyaltyCard,News,Organisation,Product,Role,User
 from app.models.retail import BranchService,DiscountCampaign,DiscountCampaignProduct,LoyaltyRewardOffer,LoyaltyTransaction,OrganisationModule,ProductCategory,ProductPrice
 from app.core.time import utc_now
 
@@ -24,6 +24,9 @@ def product_asset(category:str)->str:
 def enrich_customer_demo(db):
     nova=db.scalar(select(Organisation).where(Organisation.name=="Nova Market"));city=db.scalar(select(Organisation).where(Organisation.name=="CityMart"));customer=db.scalar(select(User).where(User.email=="customer@demo.az"))
     if not nova or not city or not customer:return
+    if not customer.selected_organisation_id:customer.selected_organisation_id=nova.id
+    for org in (nova,city):
+        if not db.scalar(select(CustomerMarketMembership).where(CustomerMarketMembership.customer_id==customer.id,CustomerMarketMembership.organisation_id==org.id)):db.add(CustomerMarketMembership(customer_id=customer.id,organisation_id=org.id))
     for product in db.scalars(select(Product)).all():product.image_url=product_asset(product.category)
     for item in db.scalars(select(News)).all():item.image_url="/assets/retail-news-v2.png"
     city_branch=db.scalar(select(Branch).where(Branch.organisation_id==city.id))
@@ -58,7 +61,7 @@ def run():
             print("Demo data already exists");return
         nova=Organisation(name="Nova Market");city=Organisation(name="CityMart");db.add_all([nova,city]);db.flush()
         branches=[Branch(organisation_id=nova.id,name="Nova Market — Nərimanov",address="Təbriz küçəsi 42",distance_km=1.2),Branch(organisation_id=nova.id,name="Nova Market — Yasamal",address="Mətbuat prospekti 18",distance_km=3.4),Branch(organisation_id=nova.id,name="Nova Market — Xətai",address="Xocalı prospekti 15",distance_km=4.8),Branch(organisation_id=city.id,name="CityMart — Gənclik",address="Fətəli xan Xoyski 90",distance_km=2.1)];db.add_all(branches);db.flush()
-        users=[User(organisation_id=nova.id,branch_id=branches[0].id,email="customer@demo.az",full_name="Aylin Məmmədova",phone="+994501112233",role=Role.CUSTOMER,password_hash=hash_password(PASSWORD)),User(organisation_id=nova.id,branch_id=branches[0].id,email="branch@demo.az",full_name="Elvin Əliyev",role=Role.BRANCH_ADMIN,password_hash=hash_password(PASSWORD)),User(organisation_id=nova.id,email="head@demo.az",full_name="Leyla Qasımova",role=Role.HEAD_OFFICE_ADMIN,password_hash=hash_password(PASSWORD)),User(organisation_id=nova.id,branch_id=branches[0].id,email="staff@demo.az",full_name="Murad Həsənli",role=Role.STAFF,password_hash=hash_password(PASSWORD)),User(email="platform@martiq.az",full_name="MARTIQ Admin",role=Role.PLATFORM_ADMIN,password_hash=hash_password(PASSWORD)),User(organisation_id=city.id,branch_id=branches[3].id,email="cityadmin@demo.az",full_name="CityMart Admin",role=Role.BRANCH_ADMIN,password_hash=hash_password(PASSWORD))];db.add_all(users);db.flush()
+        users=[User(organisation_id=nova.id,selected_organisation_id=nova.id,branch_id=branches[0].id,email="customer@demo.az",full_name="Aylin Məmmədova",phone="+994501112233",role=Role.CUSTOMER,password_hash=hash_password(PASSWORD)),User(organisation_id=nova.id,branch_id=branches[0].id,email="branch@demo.az",full_name="Elvin Əliyev",role=Role.BRANCH_ADMIN,password_hash=hash_password(PASSWORD)),User(organisation_id=nova.id,email="head@demo.az",full_name="Leyla Qasımova",role=Role.HEAD_OFFICE_ADMIN,password_hash=hash_password(PASSWORD)),User(organisation_id=nova.id,branch_id=branches[0].id,email="staff@demo.az",full_name="Murad Həsənli",role=Role.STAFF,password_hash=hash_password(PASSWORD)),User(email="platform@martiq.az",full_name="MARTIQ Admin",role=Role.PLATFORM_ADMIN,password_hash=hash_password(PASSWORD)),User(organisation_id=city.id,branch_id=branches[3].id,email="cityadmin@demo.az",full_name="CityMart Admin",role=Role.BRANCH_ADMIN,password_hash=hash_password(PASSWORD))];db.add_all(users);db.flush()
         users[0].full_name="Həsən Nurməmmədov"
         categories=sorted({x[2] for x in CATALOG});db.add_all([ProductCategory(organisation_id=nova.id,name=x) for x in categories])
         products=[]

@@ -10,8 +10,10 @@ from app.core.time import utc_now
 
 router=APIRouter(prefix="/api/v1")
 class OrganisationIn(BaseModel): name:str=Field(min_length=2,max_length=160)
+class OrganisationUpdate(BaseModel): name:str=Field(min_length=2,max_length=160);is_active:bool
 class BranchIn(BaseModel): organisation_id:str;name:str=Field(min_length=2,max_length=160);address:str;hours:str="08:00–23:00"
 class AdminIn(BaseModel): organisation_id:str;branch_id:str|None=None;email:str;full_name:str;password:str=Field(min_length=8,max_length=72);role:Role
+class AdminUpdate(BaseModel): full_name:str=Field(min_length=2,max_length=160);is_active:bool;branch_id:str|None=None
 
 def score_data(rows:list[Incident],overdue:int,valid_audits:int):
     closed={IncidentStatus.MANUALLY_RESOLVED,IncidentStatus.AUTO_RESOLVED,IncidentStatus.REJECTED,IncidentStatus.CANCELLED}
@@ -34,6 +36,12 @@ def list_orgs(user:User=Depends(roles(Role.PLATFORM_ADMIN)),db:Session=Depends(g
 def create_org(data:OrganisationIn,user:User=Depends(roles(Role.PLATFORM_ADMIN)),db:Session=Depends(get_db)):
     item=Organisation(name=data.name);db.add(item);db.commit();db.refresh(item);return item
 
+@router.patch("/platform/organisations/{organisation_id}")
+def update_org(organisation_id:str,data:OrganisationUpdate,user:User=Depends(roles(Role.PLATFORM_ADMIN)),db:Session=Depends(get_db)):
+    item=db.get(Organisation,organisation_id)
+    if not item:raise HTTPException(404,"Organisation not found")
+    item.name=data.name;item.is_active=data.is_active;db.commit();db.refresh(item);return item
+
 @router.post("/platform/branches",status_code=201)
 def create_branch(data:BranchIn,user:User=Depends(roles(Role.PLATFORM_ADMIN)),db:Session=Depends(get_db)):
     if not db.get(Organisation,data.organisation_id):raise HTTPException(404,"Organisation not found")
@@ -48,6 +56,15 @@ def create_admin(data:AdminIn,user:User=Depends(roles(Role.PLATFORM_ADMIN)),db:S
         if not branch or branch.organisation_id!=data.organisation_id:raise HTTPException(422,"Branch admin requires a branch in the selected organisation")
     elif data.branch_id:raise HTTPException(422,"Head-office admin cannot be assigned to one branch")
     item=User(organisation_id=data.organisation_id,branch_id=data.branch_id,email=data.email.lower(),full_name=data.full_name,role=data.role,password_hash=hash_password(data.password));db.add(item);db.commit();db.refresh(item);return {"id":item.id,"email":item.email,"role":item.role}
+
+@router.patch("/platform/admins/{admin_id}")
+def update_admin(admin_id:str,data:AdminUpdate,user:User=Depends(roles(Role.PLATFORM_ADMIN)),db:Session=Depends(get_db)):
+    item=db.get(User,admin_id)
+    if not item or item.role not in (Role.BRANCH_ADMIN,Role.HEAD_OFFICE_ADMIN):raise HTTPException(404,"Administrator not found")
+    if data.branch_id:
+        branch=db.get(Branch,data.branch_id)
+        if not branch or branch.organisation_id!=item.organisation_id:raise HTTPException(422,"Branch is outside administrator organisation")
+    item.full_name=data.full_name;item.is_active=data.is_active;item.branch_id=data.branch_id if item.role==Role.BRANCH_ADMIN else None;db.commit();return {"id":item.id,"full_name":item.full_name,"email":item.email,"role":item.role,"branch_id":item.branch_id,"is_active":item.is_active}
 
 @router.get("/platform/usage")
 def usage(user:User=Depends(roles(Role.PLATFORM_ADMIN)),db:Session=Depends(get_db)):

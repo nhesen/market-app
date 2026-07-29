@@ -8,6 +8,7 @@ from app.db.session import get_db
 from app.models.domain import Branch,News,Product,Role,User
 from app.models.retail import AuditLog,BranchService,DiscountCampaign,DiscountCampaignProduct,FileAsset,LoyaltyRewardOffer,LoyaltyTransaction,ProductCategory,ProductPrice
 from app.services.storage import storage
+from app.services.customer_context import market_id
 
 router=APIRouter(prefix="/api/v1")
 ADMINS=(Role.BRANCH_ADMIN,Role.HEAD_OFFICE_ADMIN,Role.PLATFORM_ADMIN)
@@ -24,33 +25,33 @@ def log(db:Session,user:User,action:str,kind:str,entity_id:str):db.add(AuditLog(
 
 @router.post("/uploads",status_code=201)
 async def upload(file:UploadFile=File(...),user:User=Depends(current_user),db:Session=Depends(get_db)):
-    key,size,mime=await storage.save(file);item=FileAsset(organisation_id=user.organisation_id,owner_id=user.id,storage_key=key,original_name=file.filename or "upload",mime_type=mime,size=size);db.add(item);db.commit();db.refresh(item);return {"id":item.id,"name":item.original_name,"mime_type":mime,"size":size,"url":f"/uploads/{key}"}
+    key,size,mime=await storage.save(file);item=FileAsset(organisation_id=market_id(user),owner_id=user.id,storage_key=key,original_name=file.filename or "upload",mime_type=mime,size=size);db.add(item);db.commit();db.refresh(item);return {"id":item.id,"name":item.original_name,"mime_type":mime,"size":size,"url":f"/uploads/{key}"}
 
 @router.get("/loyalty/cards")
 def cards(user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
     from app.models.domain import LoyaltyCard,Organisation
-    organisation=db.get(Organisation,user.organisation_id)
-    cards=db.scalars(select(LoyaltyCard).where(LoyaltyCard.user_id==user.id,LoyaltyCard.organisation_id==user.organisation_id)).all()
+    org=market_id(user);organisation=db.get(Organisation,org)
+    cards=db.scalars(select(LoyaltyCard).where(LoyaltyCard.user_id==user.id,LoyaltyCard.organisation_id==org)).all()
     return [{"id":x.id,"organisation_id":x.organisation_id,"market_name":organisation.name if organisation else "","label":x.label,"card_number":x.card_number,"balance":x.balance,"monthly_earned":x.monthly_earned,"expiring":x.expiring,"expiring_on":x.expiring_on} for x in cards]
 @router.get("/loyalty/cards/{card_id}/transactions")
 def transactions(card_id:str,user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
     from app.models.domain import LoyaltyCard
-    if not db.scalar(select(LoyaltyCard).where(LoyaltyCard.id==card_id,LoyaltyCard.user_id==user.id)):raise HTTPException(404,"Card not found")
+    if not db.scalar(select(LoyaltyCard).where(LoyaltyCard.id==card_id,LoyaltyCard.user_id==user.id,LoyaltyCard.organisation_id==market_id(user))):raise HTTPException(404,"Card not found")
     return db.scalars(select(LoyaltyTransaction).where(LoyaltyTransaction.card_id==card_id).order_by(LoyaltyTransaction.created_at.desc())).all()
 
 @router.get("/loyalty/offers")
 def loyalty_offers(user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
-    return db.scalars(select(LoyaltyRewardOffer).where(LoyaltyRewardOffer.organisation_id==user.organisation_id,LoyaltyRewardOffer.active==True).order_by(LoyaltyRewardOffer.points_cost)).all()
+    return db.scalars(select(LoyaltyRewardOffer).where(LoyaltyRewardOffer.organisation_id==market_id(user),LoyaltyRewardOffer.active==True).order_by(LoyaltyRewardOffer.points_cost)).all()
 
 @router.get("/loyalty/offers/{offer_id}")
 def loyalty_offer(offer_id:str,user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
-    item=db.scalar(select(LoyaltyRewardOffer).where(LoyaltyRewardOffer.id==offer_id,LoyaltyRewardOffer.organisation_id==user.organisation_id,LoyaltyRewardOffer.active==True))
+    item=db.scalar(select(LoyaltyRewardOffer).where(LoyaltyRewardOffer.id==offer_id,LoyaltyRewardOffer.organisation_id==market_id(user),LoyaltyRewardOffer.active==True))
     if not item:raise HTTPException(404,"Reward offer not found")
     return item
 
 @router.get("/discounts")
 def discounts(category:str|None=None,user:User=Depends(current_user),db:Session=Depends(get_db)):
-    campaigns=db.scalars(select(DiscountCampaign).where(DiscountCampaign.organisation_id==user.organisation_id,DiscountCampaign.published==True)).all();out=[]
+    campaigns=db.scalars(select(DiscountCampaign).where(DiscountCampaign.organisation_id==market_id(user),DiscountCampaign.published==True)).all();out=[]
     for c in campaigns:
         stmt=select(DiscountCampaignProduct,Product,Branch).join(Product,Product.id==DiscountCampaignProduct.product_id).join(Branch,Branch.id==DiscountCampaignProduct.branch_id).where(DiscountCampaignProduct.campaign_id==c.id)
         if category:stmt=stmt.where(Product.category==category)

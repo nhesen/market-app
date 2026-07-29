@@ -9,6 +9,7 @@ from app.core.time import as_utc, utc_now
 from app.models.domain import CustomerReport, Incident, IncidentNote, IncidentSource, IncidentStatus, IncidentStatusHistory, Role, User
 from app.models.retail import FileAsset, IncidentAttachment
 from app.schemas.api import ReportCreate
+from app.services.customer_context import market_id
 
 CLOSED={IncidentStatus.AUTO_RESOLVED,IncidentStatus.MANUALLY_RESOLVED,IncidentStatus.REJECTED,IncidentStatus.CANCELLED}
 BASE={
@@ -121,12 +122,13 @@ def add_note(db:Session,incident:Incident,actor:User,note:str,customer_visible:b
 
 
 def create_customer_report(db:Session,user:User,data:ReportCreate):
-    report=CustomerReport(tracking_number=f"MQ-{secrets.token_hex(4).upper()}",organisation_id=user.organisation_id,branch_id=data.branch_id,customer_id=user.id,category=data.category,subcategory=data.subcategory,product_id=data.product_id,barcode=data.barcode,title=data.title,description=data.description,status=IncidentStatus.NEW)
-    incident=create_incident(db,organisation_id=user.organisation_id,branch_id=data.branch_id,report=report,source=IncidentSource.CUSTOMER_REPORT,category=data.category,title=data.title,description=data.description,actor=user,customer_note="Müraciətiniz qəbul edildi.")
+    org=market_id(user)
+    report=CustomerReport(tracking_number=f"MQ-{secrets.token_hex(4).upper()}",organisation_id=org,branch_id=data.branch_id,customer_id=user.id,category=data.category,subcategory=data.subcategory,product_id=data.product_id,barcode=data.barcode,title=data.title,description=data.description,status=IncidentStatus.NEW)
+    incident=create_incident(db,organisation_id=org,branch_id=data.branch_id,report=report,source=IncidentSource.CUSTOMER_REPORT,category=data.category,title=data.title,description=data.description,actor=user,customer_note="Müraciətiniz qəbul edildi.")
     db.commit();db.refresh(report)
     for asset_id in data.attachment_ids:
         asset=db.get(FileAsset,asset_id)
-        if asset and asset.owner_id==user.id and asset.organisation_id==user.organisation_id:db.add(IncidentAttachment(organisation_id=user.organisation_id,incident_id=incident.id,file_asset_id=asset.id,customer_visible=True))
+        if asset and asset.owner_id==user.id and asset.organisation_id==org:db.add(IncidentAttachment(organisation_id=org,incident_id=incident.id,file_asset_id=asset.id,customer_visible=True))
     db.commit();return report
 
 

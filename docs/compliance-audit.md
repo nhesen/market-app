@@ -8,13 +8,13 @@ Evidence rule: `VERIFIED_WORKING` is used only where an automated test, build, m
 
 | Check | Initial result | Evidence |
 |---|---|---|
-| Backend automated tests | VERIFIED_WORKING | `python -m pytest -q`: 16 passed |
+| Backend automated tests | VERIFIED_WORKING | `python -m pytest -q`: 36 passed (2026-07-29 final re-audit) |
 | Admin production compile | VERIFIED_WORKING | `npm run build`: Vite build completed, 1,637 modules |
 | Mobile strict TypeScript | VERIFIED_WORKING | `npm run typecheck`: exit 0 |
 | Expo dependency health | VERIFIED_WORKING | `npx expo-doctor`: 18/18 |
-| Admin lint | MISSING | No `lint` script in `admin/package.json` |
-| Mobile lint | MISSING | No `lint` script in `mobile/package.json` |
-| Clean PostgreSQL migration/seed | VERIFIED_WORKING | Docker PostgreSQL 16 healthy; migrations through 0004, idempotent seed, and Alembic drift check passed |
+| Admin lint | VERIFIED_WORKING | `eslint src --max-warnings 0`; production build also passed |
+| Mobile lint | VERIFIED_WORKING | ESLint and strict TypeScript passed; Android export passed |
+| Clean PostgreSQL migration/seed | VERIFIED_WORKING | Docker PostgreSQL 16 healthy; migrations through `0009`, idempotent seed, and Alembic drift check passed |
 | Browser visual/runtime test | BROKEN | No controllable browser session is available in the current environment |
 
 ## Requirement traceability matrix
@@ -246,3 +246,12 @@ The route check covered the CORE mobile routes, the three admin role prefixes an
 - Approved Phase 2/3 advanced analytics, hardware pilots and model-operations work.
 
 No unresolved CORE API/database failure was observed in this release audit. Interactive visual acceptance on a browser and physical Android camera acceptance remain release-environment evidence tasks, not claims of completed external integration.
+
+### Architecture and admin hardening re-audit — 2026-07-29
+
+- Migration `0008` separates universal customer selection into `users.selected_organisation_id` and `customer_market_memberships`; `/profile/preferred-market` no longer mutates tenant ownership in `users.organisation_id`.
+- Direct PostgreSQL/HTTP evidence: switching the demo customer from Nova Market to CityMart left `organisation_id` unchanged, while `/home` returned CityMart and both Home loyalty and `/loyalty/cards` returned only the CityMart organisation ID.
+- Admin browser `prompt()` usage is zero. Incident assignment/reject/resolve/reopen uses an accessible modal with department, SLA and reason fields; news/product/campaign editing uses modal forms; destructive content actions use a confirmation dialog.
+- Head-office operational analytics now includes average/median resolution time, overdue/open totals, automatic/manual resolution, customer verification rate, re-audit consistency, recurring issues, source/status/category/hour breakdowns and branch/status/source/date filters.
+- Platform management now supports organisation rename/activation and tenant administrator edit/deactivation through protected API endpoints and modal forms; migration `0009` adds organisation lifecycle state.
+- Revalidation after these changes: backend `36 passed`; PostgreSQL Alembic upgraded through `0009`; `alembic check` returned no drift; admin lint/build and mobile lint/typecheck passed.
