@@ -29,11 +29,15 @@ class ForgotPasswordIn(BaseModel):
 class PreferredBranchIn(BaseModel):
     branch_id:str
 
+class PreferredMarketIn(BaseModel):
+    organisation_id:str
+
 class SuggestionCreate(BaseModel):
-    branch_id:str|None=None; category:str=Field(min_length=2,max_length=80); title:str=Field(min_length=4,max_length=180); description:str=Field(min_length=10,max_length=3000); anonymous:bool=False
+    branch_id:str|None=None; category:str=Field(min_length=2,max_length=80); title:str=Field(min_length=4,max_length=180); description:str=Field(min_length=10,max_length=3000); anonymous:bool=False;attachment_ids:list[str]=Field(default_factory=list,max_length=3)
 
 class SuggestionUpdate(BaseModel):
     status:SuggestionStatus; admin_note:str=Field(min_length=2,max_length=2000)
 
 class SuggestionOut(BaseModel):
     id:str; tracking_number:str; branch_id:str|None; category:str; title:str; description:str; anonymous:bool; status:SuggestionStatus; admin_note:str|None; created_at:datetime; updated_at:datetime
+    history:list[dict]=Field(default_factory=list);media:list[dict]=Field(default_factory=list)

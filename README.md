@@ -57,7 +57,7 @@ python -m scripts.seed
 python -m alembic check
 ```
 
-The verified clean run reached Alembic revision `0002 (head)`. The first seed printed `Seeded 2 organisations, 4 branches and 24 products`; the second printed `Demo data already exists`.
+The current verified PostgreSQL run reached Alembic revision `0004 (head)`. The customer demo contains two switchable markets, four branches, 30 products, market-scoped campaigns/cards/offers, and idempotent enrichment; repeated seed runs print `Demo data already exists` without duplicating records.
 
 ## Quality gates
 

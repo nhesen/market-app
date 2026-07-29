@@ -31,6 +31,7 @@ app.include_router(platform_router)
 app.include_router(content_router)
 app.include_router(vision_router)
 app.mount("/uploads",StaticFiles(directory=settings.upload_dir),name="uploads")
+app.mount("/assets",StaticFiles(directory="assets"),name="assets")
 
 @app.get("/health")
 def health(): return {"status": "ok", "service": "martiq-api"}

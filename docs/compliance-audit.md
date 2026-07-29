@@ -14,7 +14,7 @@ Evidence rule: `VERIFIED_WORKING` is used only where an automated test, build, m
 | Expo dependency health | VERIFIED_WORKING | `npx expo-doctor`: 18/18 |
 | Admin lint | MISSING | No `lint` script in `admin/package.json` |
 | Mobile lint | MISSING | No `lint` script in `mobile/package.json` |
-| Clean PostgreSQL migration/seed | PARTIALLY_WORKING | Compose/migrations/seed exist; clean PostgreSQL replay still pending in this audit |
+| Clean PostgreSQL migration/seed | VERIFIED_WORKING | Docker PostgreSQL 16 healthy; migrations through 0004, idempotent seed, and Alembic drift check passed |
 | Browser visual/runtime test | BROKEN | No controllable browser session is available in the current environment |
 
 ## Requirement traceability matrix
@@ -109,7 +109,7 @@ Abbreviations: C = customer, S = staff, BA = branch admin, HO = head office, PA 
 - Required customer discount/news/product detail and settings flows are incomplete.
 - Content, analytics, platform management and branch-management CRUD are incomplete.
 - Localisation files exist but most UI strings bypass them.
-- Clean PostgreSQL migration/drift/seed idempotency and all five live demo logins require revalidation.
+- Historical note: the original audit required PostgreSQL and demo-login revalidation. Subsequent runtime verification completed both against Docker PostgreSQL; the evidence below is retained as historical context only.
 
 ### MEDIUM
 
@@ -133,7 +133,7 @@ Abbreviations: C = customer, S = staff, BA = branch admin, HO = head office, PA 
 7. Notification repair: API and mobile UI now support mark-all-read in addition to individual read state.
 8. Mobile revalidation: strict TypeScript passed and the Android production export bundled all 1,115 modules successfully.
 9. Admin revalidation: production TypeScript/Vite build passed with 1,637 transformed modules.
-10. Remaining environment limitation: Docker Desktop daemon was not running, so PostgreSQL itself could not be started. This is recorded as an environment blocker rather than presented as a successful PostgreSQL runtime test.
+10. Superseded environment note: Docker Desktop was unavailable during the original audit. It is now running PostgreSQL 16 on port 5432, and revisions through `0004` plus seed idempotency have been verified against that service.
 
 Rows affected by these repairs: R13 and R38 improved but remain `PARTIALLY_WORKING` because their full specification surface is wider; R40 remains `PARTIALLY_WORKING` pending preferences; R47 is now `VERIFIED_WORKING` for login/session role evidence; R48 is `VERIFIED_WORKING` for the specified top-level counts and idempotency, while not every optional operational seed subtype exists.
 

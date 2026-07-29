@@ -5,11 +5,11 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from app.core.security import create_refresh_token, create_token, current_user, hash_password, roles
 from app.db.session import get_db
-from app.models.customer import AccountDeletionRequest, FavouriteCampaign, FavouriteProduct, ManagementSuggestion, Notification
+from app.models.customer import AccountDeletionRequest, FavouriteCampaign, FavouriteProduct, ManagementSuggestion, Notification,SuggestionAttachment,SuggestionStatusHistory
 from app.models.domain import Branch, News, Organisation, Product, Role, User
-from app.models.retail import BranchService,DiscountCampaign,FavouriteBranch,ProductCategory,ProductPrice
+from app.models.retail import BranchService,DiscountCampaign,FavouriteBranch,FileAsset,ProductCategory,ProductPrice
 from app.schemas.api import TokenOut, UserOut
-from app.schemas.customer import DeleteRequestIn,ForgotPasswordIn,PreferencesUpdate,PreferredBranchIn,ProfileUpdate, RegisterIn, SuggestionCreate, SuggestionOut, SuggestionUpdate
+from app.schemas.customer import DeleteRequestIn,ForgotPasswordIn,PreferencesUpdate,PreferredBranchIn,PreferredMarketIn,ProfileUpdate, RegisterIn, SuggestionCreate, SuggestionOut, SuggestionUpdate
 
 router=APIRouter(prefix="/api/v1")
 
@@ -59,6 +59,12 @@ def update_preferred_branch(data:PreferredBranchIn,user:User=Depends(roles(Role.
     if not branch:raise HTTPException(404,"Branch not found")
     user.preferred_branch_id=branch.id;db.commit();return {"branch_id":branch.id}
 
+@router.patch("/profile/preferred-market")
+def update_preferred_market(data:PreferredMarketIn,user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
+    market=db.get(Organisation,data.organisation_id)
+    if not market:raise HTTPException(404,"Market not found")
+    user.organisation_id=market.id;user.preferred_branch_id=None;db.commit();return {"organisation_id":market.id,"name":market.name}
+
 @router.get("/news")
 def list_news(user:User=Depends(current_user),db:Session=Depends(get_db)):
     return db.scalars(select(News).where(News.organisation_id==user.organisation_id).order_by(News.published_at.desc())).all()
@@ -106,7 +112,7 @@ def branch_detail(branch_id:str,user:User=Depends(current_user),db:Session=Depen
 
 @router.get("/favourites/products")
 def favourites(user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
-    return db.scalars(select(Product).join(FavouriteProduct,FavouriteProduct.product_id==Product.id).where(FavouriteProduct.user_id==user.id)).all()
+    return db.scalars(select(Product).join(FavouriteProduct,FavouriteProduct.product_id==Product.id).where(FavouriteProduct.user_id==user.id,Product.organisation_id==user.organisation_id)).all()
 
 @router.post("/favourites/products/{product_id}",status_code=201)
 def favourite(product_id:str,user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
@@ -123,7 +129,7 @@ def unfavourite(product_id:str,user:User=Depends(roles(Role.CUSTOMER)),db:Sessio
 
 @router.get("/favourites/branches")
 def favourite_branches(user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
-    return db.scalars(select(Branch).join(FavouriteBranch,FavouriteBranch.branch_id==Branch.id).where(FavouriteBranch.user_id==user.id)).all()
+    return db.scalars(select(Branch).join(FavouriteBranch,FavouriteBranch.branch_id==Branch.id).where(FavouriteBranch.user_id==user.id,Branch.organisation_id==user.organisation_id)).all()
 
 @router.post("/favourites/branches/{branch_id}",status_code=201)
 def favourite_branch(branch_id:str,user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
@@ -139,7 +145,7 @@ def unfavourite_branch(branch_id:str,user:User=Depends(roles(Role.CUSTOMER)),db:
 
 @router.get("/favourites/campaigns")
 def favourite_campaigns(user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
-    return [x.id for x in db.scalars(select(DiscountCampaign).join(FavouriteCampaign,FavouriteCampaign.campaign_id==DiscountCampaign.id).where(FavouriteCampaign.user_id==user.id)).all()]
+    return [x.id for x in db.scalars(select(DiscountCampaign).join(FavouriteCampaign,FavouriteCampaign.campaign_id==DiscountCampaign.id).where(FavouriteCampaign.user_id==user.id,DiscountCampaign.organisation_id==user.organisation_id)).all()]
 
 @router.post("/favourites/campaigns/{campaign_id}",status_code=201)
 def favourite_campaign(campaign_id:str,user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
@@ -156,21 +162,30 @@ def unfavourite_campaign(campaign_id:str,user:User=Depends(roles(Role.CUSTOMER))
 @router.post("/suggestions",response_model=SuggestionOut,status_code=201)
 def create_suggestion(data:SuggestionCreate,user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
     if data.branch_id and not db.scalar(select(Branch).where(Branch.id==data.branch_id,Branch.organisation_id==user.organisation_id)): raise HTTPException(404,"Branch not found")
-    item=ManagementSuggestion(tracking_number=f"MS-{secrets.token_hex(4).upper()}",organisation_id=user.organisation_id,customer_id=user.id,**data.model_dump());db.add(item);db.commit();db.refresh(item);return item
+    payload=data.model_dump(exclude={"attachment_ids"});item=ManagementSuggestion(tracking_number=f"MS-{secrets.token_hex(4).upper()}",organisation_id=user.organisation_id,customer_id=user.id,**payload);db.add(item);db.flush();db.add(SuggestionStatusHistory(suggestion_id=item.id,status=item.status,note="Təklif qəbul edildi"))
+    for asset_id in data.attachment_ids:
+        asset=db.scalar(select(FileAsset).where(FileAsset.id==asset_id,FileAsset.owner_id==user.id,FileAsset.organisation_id==user.organisation_id))
+        if asset:db.add(SuggestionAttachment(organisation_id=user.organisation_id,suggestion_id=item.id,file_asset_id=asset.id))
+    db.commit();db.refresh(item);return suggestion_view(item,db)
+
+def suggestion_view(item:ManagementSuggestion,db:Session):
+    history=db.scalars(select(SuggestionStatusHistory).where(SuggestionStatusHistory.suggestion_id==item.id).order_by(SuggestionStatusHistory.created_at)).all()
+    media_rows=db.execute(select(SuggestionAttachment,FileAsset).join(FileAsset,FileAsset.id==SuggestionAttachment.file_asset_id).where(SuggestionAttachment.suggestion_id==item.id)).all()
+    return {"id":item.id,"tracking_number":item.tracking_number,"branch_id":item.branch_id,"category":item.category,"title":item.title,"description":item.description,"anonymous":item.anonymous,"status":item.status,"admin_note":item.admin_note,"created_at":item.created_at,"updated_at":item.updated_at,"history":[{"status":x.status,"note":x.note,"created_at":x.created_at} for x in history],"media":[{"id":asset.id,"url":f"/uploads/{asset.storage_key}","mime_type":asset.mime_type,"name":asset.original_name} for _,asset in media_rows]}
 
 @router.get("/suggestions",response_model=list[SuggestionOut])
 def own_suggestions(user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
-    return db.scalars(select(ManagementSuggestion).where(ManagementSuggestion.customer_id==user.id).order_by(ManagementSuggestion.created_at.desc())).all()
+    return [suggestion_view(x,db) for x in db.scalars(select(ManagementSuggestion).where(ManagementSuggestion.customer_id==user.id).order_by(ManagementSuggestion.created_at.desc())).all()]
 
 @router.get("/suggestions/{suggestion_id}",response_model=SuggestionOut)
 def own_suggestion(suggestion_id:str,user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
     item=db.scalar(select(ManagementSuggestion).where(ManagementSuggestion.id==suggestion_id,ManagementSuggestion.customer_id==user.id))
     if not item:raise HTTPException(404,"Suggestion not found")
-    return item
+    return suggestion_view(item,db)
 
 @router.get("/notifications")
 def notifications(user:User=Depends(current_user),db:Session=Depends(get_db)):
-    return db.scalars(select(Notification).where(Notification.user_id==user.id).order_by(Notification.created_at.desc())).all()
+    return db.scalars(select(Notification).where(Notification.user_id==user.id,Notification.organisation_id==user.organisation_id).order_by(Notification.created_at.desc())).all()
 
 @router.patch("/notifications/read-all")
 def mark_all_read(user:User=Depends(current_user),db:Session=Depends(get_db)):
@@ -190,12 +205,12 @@ def admin_suggestions(user:User=Depends(roles(*ADMIN)),db:Session=Depends(get_db
     stmt=select(ManagementSuggestion).order_by(ManagementSuggestion.created_at.desc())
     if user.role!=Role.PLATFORM_ADMIN: stmt=stmt.where(ManagementSuggestion.organisation_id==user.organisation_id)
     if user.role==Role.BRANCH_ADMIN: stmt=stmt.where(or_(ManagementSuggestion.branch_id==user.branch_id,ManagementSuggestion.branch_id.is_(None)))
-    return db.scalars(stmt).all()
+    return [suggestion_view(x,db) for x in db.scalars(stmt).all()]
 
 @router.patch("/admin/suggestions/{item_id}",response_model=SuggestionOut)
 def admin_update_suggestion(item_id:str,data:SuggestionUpdate,user:User=Depends(roles(*ADMIN)),db:Session=Depends(get_db)):
     item=db.get(ManagementSuggestion,item_id)
     allowed=item and (user.role==Role.PLATFORM_ADMIN or item.organisation_id==user.organisation_id) and (user.role!=Role.BRANCH_ADMIN or item.branch_id in (None,user.branch_id))
     if not allowed: raise HTTPException(404,"Suggestion not found")
-    item.status=data.status;item.admin_note=data.admin_note
-    db.add(Notification(organisation_id=item.organisation_id,user_id=item.customer_id,kind="SUGGESTION_STATUS",title="Təklifiniz yeniləndi",body=f"{item.tracking_number}: {item.status.value}"));db.commit();db.refresh(item);return item
+    item.status=data.status;item.admin_note=data.admin_note;db.add(SuggestionStatusHistory(suggestion_id=item.id,status=data.status,note=data.admin_note))
+    db.add(Notification(organisation_id=item.organisation_id,user_id=item.customer_id,kind="SUGGESTION_STATUS",title="Təklifiniz yeniləndi",body=f"{item.tracking_number}: {item.status.value}"));db.commit();db.refresh(item);return suggestion_view(item,db)

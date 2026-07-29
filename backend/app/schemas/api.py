@@ -32,6 +32,9 @@ class TokenOut(BaseModel):
 class ReportCreate(BaseModel):
     branch_id: str
     category: str = Field(min_length=2, max_length=80)
+    subcategory: str | None = Field(default=None,max_length=80)
+    product_id: str | None = None
+    barcode: str | None = Field(default=None,max_length=32)
     title: str = Field(min_length=4, max_length=180)
     description: str = Field(min_length=10, max_length=3000)
     attachment_ids: list[str] = Field(default_factory=list, max_length=5)
@@ -49,6 +52,9 @@ class ReportOut(BaseModel):
     tracking_number: str
     branch_id: str
     category: str
+    subcategory: str | None = None
+    product_id: str | None = None
+    barcode: str | None = None
     title: str
     description: str
     status: IncidentStatus

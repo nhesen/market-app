@@ -13,8 +13,8 @@ The implemented MVP slices pass automated functional, type and build validation.
 |---|---|---|
 | Backend | `python -m pytest -q` | **16 passed** |
 | Python syntax/imports | `python -m compileall -q app scripts` | **Passed** |
-| Migrations | `python -m alembic upgrade head` on a clean DB | **0001 + 0002 passed** |
-| Seed | `python -m scripts.seed` | **2 organisations, 4 branches, 24 products** |
+| Migrations | `python -m alembic upgrade head` on Docker PostgreSQL | **0001–0004 passed; no drift** |
+| Seed | `python -m scripts.seed` twice | **2 switchable markets, 4 branches, 30 products; second run idempotent** |
 | Mobile types | `npm run typecheck` | **Passed** |
 | Expo compatibility | `npx expo-doctor` | **18/18 checks passed** |
 | Admin | `npm run build` | **Passed** |
@@ -67,5 +67,4 @@ Expo SDK 52's CLI/build dependency tree reports transitive advisories in `tar`, 
 
 ## Recommended release gate
 
-Before a pilot build: complete one Android and one iOS device run covering login, camera permission denial/acceptance, EAN-13 scan, expiry capture, attachment upload and report tracking; complete a desktop browser walkthrough for every admin route; test against Docker PostgreSQL; and perform the Expo SDK security upgrade in an isolated branch.
-
+Before a pilot build: complete one Android and one iOS physical-device run covering camera permission denial/acceptance, EAN-13 scan, image/video upload and report tracking; complete a desktop browser walkthrough for every admin route; and perform future Expo SDK upgrades in an isolated branch. Docker PostgreSQL runtime verification is complete.

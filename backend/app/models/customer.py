@@ -31,6 +31,22 @@ class ManagementSuggestion(Base):
     created_at:Mapped[datetime]=mapped_column(DateTime,default=utc_now)
     updated_at:Mapped[datetime]=mapped_column(DateTime,default=utc_now,onupdate=utc_now)
 
+class SuggestionStatusHistory(Base):
+    __tablename__="suggestion_status_history"
+    id:Mapped[str]=mapped_column(String(36),primary_key=True,default=uid)
+    suggestion_id:Mapped[str]=mapped_column(ForeignKey("management_suggestions.id"),index=True)
+    status:Mapped[SuggestionStatus]=mapped_column(Enum(SuggestionStatus))
+    note:Mapped[str]=mapped_column(Text)
+    created_at:Mapped[datetime]=mapped_column(DateTime,default=utc_now)
+
+class SuggestionAttachment(Base):
+    __tablename__="suggestion_attachments";__table_args__=(UniqueConstraint("suggestion_id","file_asset_id"),)
+    id:Mapped[str]=mapped_column(String(36),primary_key=True,default=uid)
+    organisation_id:Mapped[str]=mapped_column(ForeignKey("organisations.id"),index=True)
+    suggestion_id:Mapped[str]=mapped_column(ForeignKey("management_suggestions.id"),index=True)
+    file_asset_id:Mapped[str]=mapped_column(ForeignKey("file_assets.id"),index=True)
+    created_at:Mapped[datetime]=mapped_column(DateTime,default=utc_now)
+
 class Notification(Base):
     __tablename__="notifications"
     id:Mapped[str]=mapped_column(String(36),primary_key=True,default=uid)

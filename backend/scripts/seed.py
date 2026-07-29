@@ -5,7 +5,7 @@ from app.db.session import Base,SessionLocal,engine
 from app.models.audit import AuditTask
 from app.models.customer import Notification
 from app.models.domain import Branch,CustomerReport,Incident,IncidentStatus,IncidentStatusHistory,LoyaltyCard,News,Organisation,Product,Role,User
-from app.models.retail import BranchService,DiscountCampaign,DiscountCampaignProduct,LoyaltyTransaction,OrganisationModule,ProductCategory,ProductPrice
+from app.models.retail import BranchService,DiscountCampaign,DiscountCampaignProduct,LoyaltyRewardOffer,LoyaltyTransaction,OrganisationModule,ProductCategory,ProductPrice
 from app.core.time import utc_now
 
 PASSWORD="Demo123!"
@@ -17,6 +17,34 @@ CATALOG=[
 ("Qabyuyan maye 750 ml","Saf","Təmizlik",4.90),("Paltar yuyucu 2 kq","Saf","Təmizlik",12.40),("Kağız dəsmal 2-li","Evra","Ev məhsulları",3.30),("Zibil torbası 20-li","Evra","Ev məhsulları",2.20),
 ("Şampun 400 ml","İnci","Şəxsi qulluq",6.90),("Sabun 4-lü","İnci","Şəxsi qulluq",3.50),("Uşaq bezi 24-lü","Balaca","Uşaq məhsulları",14.90),("Nəm salfet 72-li","Balaca","Uşaq məhsulları",3.90),
 ]
+
+def product_asset(category:str)->str:
+    if "Süd" in category:return "/assets/product-dairy.svg"
+    if "İçki" in category:return "/assets/product-beverage.svg"
+    if "qulluq" in category or "Təmizlik" in category:return "/assets/product-care.svg"
+    return "/assets/product-food.svg"
+
+def enrich_customer_demo(db):
+    nova=db.scalar(select(Organisation).where(Organisation.name=="Nova Market"));city=db.scalar(select(Organisation).where(Organisation.name=="CityMart"));customer=db.scalar(select(User).where(User.email=="customer@demo.az"))
+    if not nova or not city or not customer:return
+    for product in db.scalars(select(Product).where(Product.organisation_id==nova.id)).all():product.image_url=product_asset(product.category)
+    news=db.scalars(select(News).where(News.organisation_id==nova.id).order_by(News.published_at)).all()
+    for index,item in enumerate(news):item.image_url="/assets/news-hours.svg" if index==0 else "/assets/news-recycling.svg"
+    city_branch=db.scalar(select(Branch).where(Branch.organisation_id==city.id))
+    city_products=db.scalars(select(Product).where(Product.organisation_id==city.id)).all()
+    if not city_products:
+        city_catalog=[("City süd 1 L","City Fresh","Süd məhsulları",2.65),("Portağal şirəsi","Sun City","İçkilər",3.25),("Düyü 1 kq","City Choice","Ərzaq",3.55),("Maye sabun","Pure City","Şəxsi qulluq",4.2),("Kağız dəsmal","Home City","Ev məhsulları",2.95),("Mineral su","City Spring","İçkilər",1.1)]
+        for index,(name,brand,category,price) in enumerate(city_catalog,1):
+            item=Product(organisation_id=city.id,name=name,brand=brand,barcode=f"86900000{index:05d}",category=category,price=price,discount_price=round(price*.82,2) if index%2==0 else None,image_url=product_asset(category));db.add(item);city_products.append(item)
+        db.flush();db.add_all([ProductCategory(organisation_id=city.id,name=x) for x in sorted({p.category for p in city_products})])
+        for p in city_products:db.add(ProductPrice(organisation_id=city.id,branch_id=city_branch.id,product_id=p.id,price=p.price,previous_price=round(p.price*1.08,2),available=True))
+    if not db.scalar(select(News).where(News.organisation_id==city.id)):db.add(News(organisation_id=city.id,branch_id=city_branch.id,title_az="CityMart Gənclik yeniləndi",title_en="CityMart Ganjlik refreshed",summary_az="Yeni self-checkout zonası və təkrar emal nöqtəsi istifadəyə verildi.",summary_en="A new self-checkout area and recycling point are now available.",image_url="/assets/news-recycling.svg"))
+    if not db.scalar(select(DiscountCampaign).where(DiscountCampaign.organisation_id==city.id)):
+        campaign=DiscountCampaign(organisation_id=city.id,title="City həftəsonu",description="Seçilmiş məhsullarda həftəsonu qiymətləri",starts_on=date.today()-timedelta(days=1),ends_on=date.today()+timedelta(days=12));db.add(campaign);db.flush();db.add_all([DiscountCampaignProduct(organisation_id=city.id,campaign_id=campaign.id,product_id=p.id,branch_id=city_branch.id,discount_price=round(p.price*.82,2)) for p in city_products[:4]])
+    if not db.scalar(select(LoyaltyCard).where(LoyaltyCard.user_id==customer.id,LoyaltyCard.organisation_id==city.id)):db.add(LoyaltyCard(organisation_id=city.id,user_id=customer.id,label="City Bonus",card_number="8800123400000001",balance=680,monthly_earned=95,expiring=35,expiring_on=utc_now()+timedelta(days=40)))
+    for org,prefix in ((nova,"Nova"),(city,"City")):
+        if not db.scalar(select(LoyaltyRewardOffer).where(LoyaltyRewardOffer.organisation_id==org.id)):
+            db.add_all([LoyaltyRewardOffer(organisation_id=org.id,title_az=f"{prefix} qəhvə hədiyyəsi",title_en=f"{prefix} coffee reward",description_az="Bonuslarınızı isti içki kuponuna dəyişin.",description_en="Exchange your points for a hot drink voucher.",points_cost=250,image_url="/assets/reward.svg",valid_until=date.today()+timedelta(days=60)),LoyaltyRewardOffer(organisation_id=org.id,title_az="Alış-veriş kuponu",title_en="Shopping voucher",description_az="Növbəti alışda istifadə üçün 5 ₼ kupon.",description_en="A 5 AZN voucher for your next purchase.",points_cost=500,image_url="/assets/reward.svg",valid_until=date.today()+timedelta(days=90))])
 
 def run():
     Base.metadata.create_all(engine)
@@ -30,7 +58,7 @@ def run():
                     card.label="Nova Bonus" if index==1 else "Ailə kartı";card.card_number=f"990012340000{index:04d}";card.expiring_on=utc_now()+timedelta(days=30+index)
                 if len(cards)<2:
                     extra=LoyaltyCard(organisation_id=customer.organisation_id,user_id=customer.id,label="Ailə kartı",card_number="9900123400000002",balance=460,monthly_earned=75,expiring=20,expiring_on=utc_now()+timedelta(days=45));db.add(extra);db.flush();db.add(LoyaltyTransaction(organisation_id=customer.organisation_id,card_id=extra.id,amount=75,description="Ailə kartı üzrə alış bonusu"))
-                db.commit()
+                enrich_customer_demo(db);db.commit()
             print("Demo data already exists");return
         nova=Organisation(name="Nova Market");city=Organisation(name="CityMart");db.add_all([nova,city]);db.flush()
         branches=[Branch(organisation_id=nova.id,name="Nova Market — Nərimanov",address="Təbriz küçəsi 42",distance_km=1.2),Branch(organisation_id=nova.id,name="Nova Market — Yasamal",address="Mətbuat prospekti 18",distance_km=3.4),Branch(organisation_id=nova.id,name="Nova Market — Xətai",address="Xocalı prospekti 15",distance_km=4.8),Branch(organisation_id=city.id,name="CityMart — Gənclik",address="Fətəli xan Xoyski 90",distance_km=2.1)];db.add_all(branches);db.flush()
@@ -47,6 +75,6 @@ def run():
         card=LoyaltyCard(organisation_id=nova.id,user_id=users[0].id,label="Nova Bonus",card_number="9900123400000001",balance=1280,monthly_earned=240,expiring=90,expiring_on=utc_now()+timedelta(days=31));db.add(card);db.flush();db.add_all([LoyaltyTransaction(organisation_id=nova.id,card_id=card.id,amount=120,description="Nərimanov filialında alış"),LoyaltyTransaction(organisation_id=nova.id,card_id=card.id,amount=-50,description="Demo bonus təklifi")]);family=LoyaltyCard(organisation_id=nova.id,user_id=users[0].id,label="Ailə kartı",card_number="9900123400000002",balance=460,monthly_earned=75,expiring=20,expiring_on=utc_now()+timedelta(days=45));db.add(family);db.flush();db.add(LoyaltyTransaction(organisation_id=nova.id,card_id=family.id,amount=75,description="Ailə kartı üzrə alış bonusu"))
         campaign=DiscountCampaign(organisation_id=nova.id,title="Həftənin seçilmişləri",description="Seçilmiş gündəlik məhsullarda filial endirimləri",starts_on=date.today()-timedelta(days=2),ends_on=date.today()+timedelta(days=10));db.add(campaign);db.flush();db.add_all([DiscountCampaignProduct(organisation_id=nova.id,campaign_id=campaign.id,product_id=p.id,branch_id=branches[0].id,discount_price=round(p.price*.8,2)) for p in products[:8]])
         db.add_all([OrganisationModule(organisation_id=nova.id,module=x,enabled=True) for x in ("REPORTS","AUDITS","VISION","LOYALTY")]);db.add(Notification(organisation_id=nova.id,user_id=users[0].id,kind="DISCOUNT",title="Yeni endirim",body="Həftənin seçilmiş məhsullarına baxın."));db.add(AuditTask(organisation_id=nova.id,branch_id=branches[0].id,assignee_id=users[3].id,title="Süd məhsullarının tarix auditi",instructions="İki fərqli süd məhsulunun barkodunu və son istifadə tarixini yoxlayın.",required_count=2,due_at=utc_now()+timedelta(hours=6),priority="HIGH"))
-        report=CustomerReport(tracking_number="MQ-DEMO1024",organisation_id=nova.id,branch_id=branches[0].id,customer_id=users[0].id,category="PRICE_MISMATCH",title="Rəfdə qiymət fərqlidir",description="Südün rəf etiketi tətbiqdəki cari qiymətdən fərqlənir.");incident=Incident(organisation_id=nova.id,branch_id=branches[0].id,report=report,source="CUSTOMER",category=report.category,title=report.title,description=report.description);incident.history.append(IncidentStatusHistory(status=IncidentStatus.VERIFICATION_REQUIRED,note="Müştəri siqnalı qəbul edildi; filial təsdiqi gözlənilir.",actor_id=users[0].id));db.add(incident);db.commit();print("Seeded 2 organisations, 4 branches and 24 products")
+        report=CustomerReport(tracking_number="MQ-DEMO1024",organisation_id=nova.id,branch_id=branches[0].id,customer_id=users[0].id,category="PRICE_MISMATCH",title="Rəfdə qiymət fərqlidir",description="Südün rəf etiketi tətbiqdəki cari qiymətdən fərqlənir.");incident=Incident(organisation_id=nova.id,branch_id=branches[0].id,report=report,source="CUSTOMER",category=report.category,title=report.title,description=report.description);incident.history.append(IncidentStatusHistory(status=IncidentStatus.VERIFICATION_REQUIRED,note="Müştəri siqnalı qəbul edildi; filial təsdiqi gözlənilir.",actor_id=users[0].id));db.add(incident);db.flush();enrich_customer_demo(db);db.commit();print("Seeded 2 organisations, 4 branches and 30 products")
 
 if __name__=="__main__":run()

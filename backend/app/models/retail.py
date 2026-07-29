@@ -29,6 +29,15 @@ class LoyaltyTransaction(Base):
     __tablename__="loyalty_transactions"
     id:Mapped[str]=mapped_column(String(36),primary_key=True,default=uid);organisation_id:Mapped[str]=mapped_column(ForeignKey("organisations.id"),index=True);card_id:Mapped[str]=mapped_column(ForeignKey("loyalty_cards.id"),index=True);amount:Mapped[int]=mapped_column(Integer);description:Mapped[str]=mapped_column(String(180));created_at:Mapped[datetime]=mapped_column(DateTime,default=utc_now)
 
+class LoyaltyRewardOffer(Base):
+    __tablename__="loyalty_reward_offers"
+    id:Mapped[str]=mapped_column(String(36),primary_key=True,default=uid)
+    organisation_id:Mapped[str]=mapped_column(ForeignKey("organisations.id"),index=True)
+    title_az:Mapped[str]=mapped_column(String(180));title_en:Mapped[str]=mapped_column(String(180))
+    description_az:Mapped[str]=mapped_column(Text);description_en:Mapped[str]=mapped_column(Text)
+    points_cost:Mapped[int]=mapped_column(Integer);image_url:Mapped[str]=mapped_column(String(255),default="/assets/reward.svg")
+    valid_until:Mapped[date]=mapped_column(Date);active:Mapped[bool]=mapped_column(Boolean,default=True)
+
 class BranchService(Base):
     __tablename__="branch_services";__table_args__=(UniqueConstraint("branch_id","name"),)
     id:Mapped[str]=mapped_column(String(36),primary_key=True,default=uid);organisation_id:Mapped[str]=mapped_column(ForeignKey("organisations.id"),index=True);branch_id:Mapped[str]=mapped_column(ForeignKey("branches.id"),index=True);name:Mapped[str]=mapped_column(String(100))

@@ -16,13 +16,13 @@ def report_view(report: CustomerReport, db: Session | None = None) -> dict:
         media=[{"id":asset.id,"name":asset.original_name,"mime_type":asset.mime_type,"url":f"/uploads/{asset.storage_key}"} for _,asset in rows]
     rejected=next((item["note"] for item in reversed(history) if str(item["status"].value if hasattr(item["status"],"value") else item["status"])=="REJECTED"),None)
     resolved=next((item["note"] for item in reversed(history) if str(item["status"].value if hasattr(item["status"],"value") else item["status"]) in ("RESOLVED","AUTO_RESOLVED")),None)
-    return {"id": report.id, "tracking_number": report.tracking_number, "branch_id": report.branch_id, "category": report.category, "title": report.title, "description": report.description, "status": report.status, "created_at": report.created_at, "history": history,"media":media,"rejection_reason":rejected,"resolution_note":resolved}
+    return {"id": report.id, "tracking_number": report.tracking_number, "branch_id": report.branch_id, "category": report.category,"subcategory":report.subcategory,"product_id":report.product_id,"barcode":report.barcode, "title": report.title, "description": report.description, "status": report.status, "created_at": report.created_at, "history": history,"media":media,"rejection_reason":rejected,"resolution_note":resolved}
 
 def incident_view(incident: Incident) -> dict:
     return {"id": incident.id, "report_id": incident.report_id, "branch_id": incident.branch_id, "source": incident.source, "category": incident.category, "title": incident.title, "description": incident.description, "priority": incident.priority, "status": incident.status, "department": incident.department, "created_at": incident.created_at, "history": serialize_history(incident)}
 
 def create_customer_report(db: Session, user: User, data: ReportCreate) -> CustomerReport:
-    report = CustomerReport(tracking_number=f"MQ-{secrets.token_hex(4).upper()}", organisation_id=user.organisation_id, branch_id=data.branch_id, customer_id=user.id, category=data.category, title=data.title, description=data.description)
+    report = CustomerReport(tracking_number=f"MQ-{secrets.token_hex(4).upper()}", organisation_id=user.organisation_id, branch_id=data.branch_id, customer_id=user.id, category=data.category,subcategory=data.subcategory,product_id=data.product_id,barcode=data.barcode, title=data.title, description=data.description)
     incident = Incident(organisation_id=user.organisation_id, branch_id=data.branch_id, report=report, source="CUSTOMER", category=data.category, title=data.title, description=data.description)
     incident.history.append(IncidentStatusHistory(status=IncidentStatus.VERIFICATION_REQUIRED, note="Müştəri siqnalı qəbul edildi; filial təsdiqi tələb olunur.", actor_id=user.id))
     db.add(incident); db.commit(); db.refresh(report)

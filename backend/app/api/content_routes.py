@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.security import current_user,roles
 from app.db.session import get_db
 from app.models.domain import Branch,News,Product,Role,User
-from app.models.retail import AuditLog,BranchService,DiscountCampaign,DiscountCampaignProduct,FileAsset,LoyaltyTransaction,ProductPrice
+from app.models.retail import AuditLog,BranchService,DiscountCampaign,DiscountCampaignProduct,FileAsset,LoyaltyRewardOffer,LoyaltyTransaction,ProductPrice
 from app.services.storage import storage
 
 router=APIRouter(prefix="/api/v1")
@@ -27,24 +27,40 @@ async def upload(file:UploadFile=File(...),user:User=Depends(current_user),db:Se
 
 @router.get("/loyalty/cards")
 def cards(user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
-    from app.models.domain import LoyaltyCard
-    return db.scalars(select(LoyaltyCard).where(LoyaltyCard.user_id==user.id)).all()
+    from app.models.domain import LoyaltyCard,Organisation
+    organisation=db.get(Organisation,user.organisation_id)
+    cards=db.scalars(select(LoyaltyCard).where(LoyaltyCard.user_id==user.id,LoyaltyCard.organisation_id==user.organisation_id)).all()
+    return [{"id":x.id,"organisation_id":x.organisation_id,"market_name":organisation.name if organisation else "","label":x.label,"card_number":x.card_number,"balance":x.balance,"monthly_earned":x.monthly_earned,"expiring":x.expiring,"expiring_on":x.expiring_on} for x in cards]
 @router.get("/loyalty/cards/{card_id}/transactions")
 def transactions(card_id:str,user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
     from app.models.domain import LoyaltyCard
     if not db.scalar(select(LoyaltyCard).where(LoyaltyCard.id==card_id,LoyaltyCard.user_id==user.id)):raise HTTPException(404,"Card not found")
     return db.scalars(select(LoyaltyTransaction).where(LoyaltyTransaction.card_id==card_id).order_by(LoyaltyTransaction.created_at.desc())).all()
 
+@router.get("/loyalty/offers")
+def loyalty_offers(user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
+    return db.scalars(select(LoyaltyRewardOffer).where(LoyaltyRewardOffer.organisation_id==user.organisation_id,LoyaltyRewardOffer.active==True).order_by(LoyaltyRewardOffer.points_cost)).all()
+
+@router.get("/loyalty/offers/{offer_id}")
+def loyalty_offer(offer_id:str,user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
+    item=db.scalar(select(LoyaltyRewardOffer).where(LoyaltyRewardOffer.id==offer_id,LoyaltyRewardOffer.organisation_id==user.organisation_id,LoyaltyRewardOffer.active==True))
+    if not item:raise HTTPException(404,"Reward offer not found")
+    return item
+
 @router.get("/discounts")
-def discounts(user:User=Depends(current_user),db:Session=Depends(get_db)):
+def discounts(category:str|None=None,user:User=Depends(current_user),db:Session=Depends(get_db)):
     campaigns=db.scalars(select(DiscountCampaign).where(DiscountCampaign.organisation_id==user.organisation_id,DiscountCampaign.published==True)).all();out=[]
     for c in campaigns:
-        items=db.execute(select(DiscountCampaignProduct,Product,Branch).join(Product,Product.id==DiscountCampaignProduct.product_id).join(Branch,Branch.id==DiscountCampaignProduct.branch_id).where(DiscountCampaignProduct.campaign_id==c.id)).all();branch_map={branch.id:branch.name for _,_,branch in items};out.append({"id":c.id,"title":c.title,"description":c.description,"starts_on":c.starts_on,"ends_on":c.ends_on,"products":[{"id":p.id,"name":p.name,"brand":p.brand,"image_url":p.image_url,"original_price":p.price,"discount_price":link.discount_price,"branch_id":link.branch_id,"branch_name":branch.name} for link,p,branch in items],"branches":[{"id":key,"name":value} for key,value in branch_map.items()]})
+        stmt=select(DiscountCampaignProduct,Product,Branch).join(Product,Product.id==DiscountCampaignProduct.product_id).join(Branch,Branch.id==DiscountCampaignProduct.branch_id).where(DiscountCampaignProduct.campaign_id==c.id)
+        if category:stmt=stmt.where(Product.category==category)
+        items=db.execute(stmt).all()
+        if category and not items:continue
+        branch_map={branch.id:branch.name for _,_,branch in items};out.append({"id":c.id,"title":c.title,"description":c.description,"image_url":"/assets/campaign-week.svg","starts_on":c.starts_on,"ends_on":c.ends_on,"products":[{"id":p.id,"name":p.name,"brand":p.brand,"category":p.category,"image_url":p.image_url,"original_price":p.price,"discount_price":link.discount_price,"branch_id":link.branch_id,"branch_name":branch.name} for link,p,branch in items],"branches":[{"id":key,"name":value} for key,value in branch_map.items()]})
     return out
 
 @router.get("/discounts/{campaign_id}")
 def discount_detail(campaign_id:str,user:User=Depends(current_user),db:Session=Depends(get_db)):
-    campaigns=discounts(user,db)
+    campaigns=discounts(None,user,db)
     item=next((campaign for campaign in campaigns if campaign["id"]==campaign_id),None)
     if not item:raise HTTPException(404,"Campaign not found")
     return item
