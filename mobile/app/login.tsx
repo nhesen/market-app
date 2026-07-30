@@ -21,7 +21,10 @@ export default function Login() {
       const user = await login(email.trim(), password);
       if (user.role === "STAFF") router.replace("/staff");
       else if (user.role === "CUSTOMER") router.replace("/");
-      else throw new Error(t("customerRequired"));
+      else if (user.role === "BRANCH_ADMIN") router.replace("/branch-admin" as never);
+      else if (user.role === "HEAD_OFFICE_ADMIN") router.replace("/head-admin" as never);
+      else if (user.role === "PLATFORM_ADMIN") router.replace("/platform-admin" as never);
+      else throw new Error(t("roleNotSupported"));
     } catch (value) { setError(value instanceof Error ? value.message : t("loadError")); }
     finally { setBusy(false); }
   }

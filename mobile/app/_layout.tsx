@@ -20,6 +20,9 @@ function RoleGate() {
       if(!active)return;
       if(!user){router.replace("/login");return}
       if(user.role==="STAFF"){router.replace("/staff");return}
+      if(user.role==="BRANCH_ADMIN"){router.replace("/branch-admin" as never);return}
+      if(user.role==="HEAD_OFFICE_ADMIN"){router.replace("/head-admin" as never);return}
+      if(user.role==="PLATFORM_ADMIN"){router.replace("/platform-admin" as never);return}
       setReady(true);
     })().catch(()=>{if(active)router.replace("/login")});
     return()=>{active=false};
