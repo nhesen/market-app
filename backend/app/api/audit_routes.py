@@ -10,8 +10,9 @@ from sqlalchemy.orm import Session
 from app.core.security import roles
 from app.core.time import as_utc, utc_now
 from app.db.session import get_db
-from app.models.audit import AuditQualityFlag, AuditResultItem, AuditStatus, AuditTask, Condition, ReAudit
+from app.models.audit import AuditQualityFlag, AuditResultItem, AuditStatus, AuditTask, AuditTemplate, Condition, ReAudit
 from app.models.domain import IncidentSource, IncidentStatus, Product, Role, User
+from app.models.retail import AuditLog
 from app.services.incidents import create_incident
 from app.services.ocr import process_demo_text, process_image_bytes
 
@@ -38,6 +39,13 @@ class OCRIn(BaseModel):
 class ReAuditIn(BaseModel):
     condition: Condition
 
+class TemplateIn(BaseModel):
+    name:str=Field(min_length=3,max_length=180);description:str=Field(min_length=3,max_length=2000);category:str=Field(min_length=2,max_length=80);branch_id:str|None=None;required_product_count:int=Field(ge=1,le=100);require_unique_products:bool=True;require_photo:bool=True;require_expiry_date:bool=True;default_priority:str=Field(pattern="^(LOW|MEDIUM|HIGH|CRITICAL)$");expected_min_duration_seconds:int=Field(ge=30,le=28800);recurrence_type:str=Field(default="NONE",pattern="^(NONE|DAILY|WEEKLY|MONTHLY)$");active:bool=True
+class TaskAssignIn(BaseModel):
+    template_id:str;assignee_id:str;due_at:datetime;priority:str|None=Field(default=None,pattern="^(LOW|MEDIUM|HIGH|CRITICAL)$");instructions:str|None=Field(default=None,max_length=3000)
+class ReAuditCreateIn(BaseModel):
+    original_task_id:str;assignee_id:str;due_at:datetime
+
 
 def item_view(item: AuditResultItem, db: Session):
     product = db.get(Product, item.product_id)
@@ -55,7 +63,7 @@ def item_view(item: AuditResultItem, db: Session):
 def task_view(task: AuditTask, db: Session, include_items: bool = False):
     items = db.scalars(select(AuditResultItem).where(AuditResultItem.task_id == task.id).order_by(AuditResultItem.created_at)).all()
     result = {
-        "id": task.id, "title": task.title, "instructions": task.instructions,
+        "id": task.id, "title": task.title, "instructions": task.instructions,"organisation_id":task.organisation_id,"branch_id":task.branch_id,"assignee_id":task.assignee_id,"template_id":task.template_id,
         "required_count": task.required_count, "unique_products": task.unique_products,
         "priority": task.priority, "status": task.status, "due_at": task.due_at,
         "started_at": task.started_at, "completed_at": task.completed_at,
@@ -216,15 +224,70 @@ def complete(task_id: str, user: User = Depends(roles(Role.STAFF)), db: Session 
 
 
 @router.get("/admin/audit-quality-flags")
-def flags(user: User = Depends(roles(Role.BRANCH_ADMIN, Role.HEAD_OFFICE_ADMIN, Role.PLATFORM_ADMIN)), db: Session = Depends(get_db)):
+def flags(staff_id:str|None=None,code:str|None=None,severity:str|None=None,resolved:bool|None=None,user: User = Depends(roles(Role.BRANCH_ADMIN, Role.HEAD_OFFICE_ADMIN, Role.PLATFORM_ADMIN)), db: Session = Depends(get_db)):
     stmt = select(AuditQualityFlag)
     if user.role != Role.PLATFORM_ADMIN: stmt = stmt.where(AuditQualityFlag.organisation_id == user.organisation_id)
     if user.role == Role.BRANCH_ADMIN: stmt = stmt.where(AuditQualityFlag.branch_id == user.branch_id)
+    if staff_id:stmt=stmt.join(AuditTask,AuditTask.id==AuditQualityFlag.task_id).where(AuditTask.assignee_id==staff_id)
+    if code:stmt=stmt.where(AuditQualityFlag.code==code)
+    if severity:stmt=stmt.where(AuditQualityFlag.severity==severity)
+    if resolved is not None:stmt=stmt.where(AuditQualityFlag.resolved==resolved)
     return db.scalars(stmt.order_by(AuditQualityFlag.created_at.desc())).all()
+
+@router.patch("/admin/audit-quality-flags/{flag_id}")
+def resolve_flag(flag_id:str,resolved:bool,user:User=Depends(roles(Role.BRANCH_ADMIN,Role.HEAD_OFFICE_ADMIN)),db:Session=Depends(get_db)):
+    item=db.get(AuditQualityFlag,flag_id);allowed=item and item.organisation_id==user.organisation_id and (user.role!=Role.BRANCH_ADMIN or item.branch_id==user.branch_id)
+    if not allowed:raise HTTPException(404,"Quality flag not found")
+    item.resolved=resolved;db.add(AuditLog(organisation_id=item.organisation_id,actor_id=user.id,action="RESOLVE" if resolved else "REOPEN",entity_type="AuditQualityFlag",entity_id=item.id));db.commit();db.refresh(item);return item
+
+def template_scope(stmt,user:User):
+    stmt=stmt.where(AuditTemplate.organisation_id==user.organisation_id)
+    return stmt.where(AuditTemplate.branch_id==user.branch_id) if user.role==Role.BRANCH_ADMIN else stmt
+
+@router.get("/admin/audit-templates")
+def templates(user:User=Depends(roles(Role.BRANCH_ADMIN,Role.HEAD_OFFICE_ADMIN)),db:Session=Depends(get_db)):
+    return db.scalars(template_scope(select(AuditTemplate),user).order_by(AuditTemplate.updated_at.desc())).all()
+
+@router.post("/admin/audit-templates",status_code=201)
+def create_template(data:TemplateIn,user:User=Depends(roles(Role.BRANCH_ADMIN,Role.HEAD_OFFICE_ADMIN)),db:Session=Depends(get_db)):
+    branch_id=user.branch_id if user.role==Role.BRANCH_ADMIN else data.branch_id
+    if branch_id:
+        from app.models.domain import Branch
+        branch=db.get(Branch,branch_id)
+        if not branch or branch.organisation_id!=user.organisation_id:raise HTTPException(404,"Branch not found")
+    item=AuditTemplate(organisation_id=user.organisation_id,branch_id=branch_id,created_by=user.id,**data.model_dump(exclude={"branch_id"}));db.add(item);db.flush();db.add(AuditLog(organisation_id=user.organisation_id,actor_id=user.id,action="CREATE",entity_type="AuditTemplate",entity_id=item.id));db.commit();db.refresh(item);return item
+
+@router.put("/admin/audit-templates/{template_id}")
+def update_template(template_id:str,data:TemplateIn,user:User=Depends(roles(Role.BRANCH_ADMIN,Role.HEAD_OFFICE_ADMIN)),db:Session=Depends(get_db)):
+    item=db.scalar(template_scope(select(AuditTemplate).where(AuditTemplate.id==template_id),user))
+    if not item:raise HTTPException(404,"Audit template not found")
+    branch_id=user.branch_id if user.role==Role.BRANCH_ADMIN else data.branch_id
+    for key,value in data.model_dump(exclude={"branch_id"}).items():setattr(item,key,value)
+    item.branch_id=branch_id;db.add(AuditLog(organisation_id=user.organisation_id,actor_id=user.id,action="UPDATE",entity_type="AuditTemplate",entity_id=item.id));db.commit();db.refresh(item);return item
+
+@router.post("/admin/audit-tasks",status_code=201)
+def assign_task(data:TaskAssignIn,user:User=Depends(roles(Role.BRANCH_ADMIN,Role.HEAD_OFFICE_ADMIN)),db:Session=Depends(get_db)):
+    template=db.scalar(select(AuditTemplate).where(AuditTemplate.id==data.template_id,AuditTemplate.organisation_id==user.organisation_id,AuditTemplate.active==True))
+    if not template or (user.role==Role.BRANCH_ADMIN and template.branch_id!=user.branch_id):raise HTTPException(404,"Audit template not found")
+    branch_id=template.branch_id or user.branch_id
+    if not branch_id:raise HTTPException(422,"Organisation template assignment requires a branch-specific administrator or template")
+    staff=db.scalar(select(User).where(User.id==data.assignee_id,User.organisation_id==user.organisation_id,User.branch_id==branch_id,User.role==Role.STAFF,User.is_active==True))
+    if not staff:raise HTTPException(404,"Staff assignee not found")
+    task=AuditTask(organisation_id=user.organisation_id,branch_id=branch_id,assignee_id=staff.id,template_id=template.id,title=template.name,instructions=data.instructions or template.description,required_count=template.required_product_count,unique_products=template.require_unique_products,priority=data.priority or template.default_priority,due_at=data.due_at);db.add(task);db.flush();db.add(AuditLog(organisation_id=user.organisation_id,actor_id=user.id,action="ASSIGN",entity_type="AuditTask",entity_id=task.id));db.commit();return task_view(task,db,True)
+
+@router.get("/admin/audits/{task_id}")
+def admin_audit_detail(task_id:str,user:User=Depends(roles(Role.BRANCH_ADMIN,Role.HEAD_OFFICE_ADMIN)),db:Session=Depends(get_db)):
+    task=db.scalar(select(AuditTask).where(AuditTask.id==task_id,AuditTask.organisation_id==user.organisation_id))
+    if not task or (user.role==Role.BRANCH_ADMIN and task.branch_id!=user.branch_id):raise HTTPException(404,"Audit not found")
+    result=task_view(task,db,True);result["quality_flags"]=db.scalars(select(AuditQualityFlag).where(AuditQualityFlag.task_id==task.id)).all();return result
+
+@router.post("/admin/re-audits",status_code=201)
+def create_reaudit_body(data:ReAuditCreateIn,user:User=Depends(roles(Role.BRANCH_ADMIN,Role.HEAD_OFFICE_ADMIN)),db:Session=Depends(get_db)):
+    return create_reaudit(data.original_task_id,data.assignee_id,user,db,data.due_at)
 
 
 @router.post("/admin/audits/{task_id}/re-audit", status_code=201)
-def create_reaudit(task_id: str, assignee_id: str, user: User = Depends(roles(Role.BRANCH_ADMIN, Role.HEAD_OFFICE_ADMIN)), db: Session = Depends(get_db)):
+def create_reaudit(task_id: str, assignee_id: str, user: User = Depends(roles(Role.BRANCH_ADMIN, Role.HEAD_OFFICE_ADMIN)), db: Session = Depends(get_db),due_at:datetime|None=None):
     task = db.scalar(select(AuditTask).where(AuditTask.id == task_id, AuditTask.organisation_id == user.organisation_id))
     items = db.scalars(select(AuditResultItem).where(AuditResultItem.task_id == task_id)).all()
     if not task or not items: raise HTTPException(404, "Completed audit result not found")
@@ -233,17 +296,17 @@ def create_reaudit(task_id: str, assignee_id: str, user: User = Depends(roles(Ro
     staff = db.scalar(select(User).where(User.id == assignee_id, User.organisation_id == user.organisation_id, User.branch_id == task.branch_id, User.role == Role.STAFF))
     if not staff: raise HTTPException(404, "Staff assignee not found")
     item = ReAudit(organisation_id=task.organisation_id, branch_id=task.branch_id, original_task_id=task.id,
-                   assignee_id=staff.id, original_condition=items[0].condition.value)
+                   assignee_id=staff.id, original_condition=items[0].condition.value,due_at=due_at)
     db.add(item); db.commit(); db.refresh(item); return item
 
 
 def reaudit_view(item: ReAudit, db: Session):
     task = db.get(AuditTask, item.original_task_id)
-    original = db.scalar(select(AuditResultItem).where(AuditResultItem.task_id == item.original_task_id).order_by(AuditResultItem.created_at))
+    originals = db.scalars(select(AuditResultItem).where(AuditResultItem.task_id == item.original_task_id).order_by(AuditResultItem.created_at)).all();original=originals[0] if originals else None
     return {"id": item.id, "status": item.status, "original_task_id": item.original_task_id,
             "original_title": task.title if task else "Audit", "original_condition": item.original_condition,
             "original_item": item_view(original, db) if original else None, "re_audit_condition": item.re_audit_condition,
-            "consistent": item.consistent, "created_at": item.created_at, "completed_at": item.completed_at}
+            "original_items":[item_view(x,db) for x in originals],"consistent": item.consistent,"due_at":item.due_at, "created_at": item.created_at, "completed_at": item.completed_at}
 
 
 @router.get("/staff/re-audits")
@@ -270,6 +333,8 @@ def quality_score(staff_id: str, user: User = Depends(roles(Role.BRANCH_ADMIN, R
     ids = [task.id for task in tasks]
     flags_count = db.scalar(select(func.count(AuditQualityFlag.id)).where(AuditQualityFlag.task_id.in_(ids))) if ids else 0
     completed = sum(task.status == AuditStatus.COMPLETED for task in tasks); rate = completed/max(len(tasks), 1)
+    durations=[(as_utc(x.completed_at)-as_utc(x.started_at)).total_seconds()/60 for x in tasks if x.started_at and x.completed_at];flags=db.scalars(select(AuditQualityFlag).where(AuditQualityFlag.task_id.in_(ids))).all() if ids else [];reaudits=db.scalars(select(ReAudit).where(ReAudit.original_task_id.in_(ids),ReAudit.consistent.is_not(None))).all() if ids else []
+    by_code={code:sum(x.code==code for x in flags) for code in {x.code for x in flags}}
     return {"staff_id": staff_id, "score": max(0, min(100, round(70+30*rate-flags_count*8))),
-            "completion_rate": round(rate*100, 1), "quality_flags": flags_count,
+            "completion_rate": round(rate*100, 1), "average_duration_minutes":round(sum(durations)/len(durations),1) if durations else 0,"quality_flags": flags_count,"flags_by_type":by_code,"re_audit_consistency":round(sum(bool(x.consistent) for x in reaudits)/len(reaudits)*100,1) if reaudits else 0,
             "explanation": "Process quality indicator; it is not an automatic disciplinary decision."}

@@ -1,3 +1,4 @@
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
@@ -10,6 +11,7 @@ from app.models.domain import Branch, CustomerReport, Incident, IncidentSource, 
 from app.schemas.api import IncidentOut, IncidentUpdate, LoginIn, ManualIncidentCreate, ReportCreate, ReportOut, TokenOut, UserOut
 from app.services.incidents import add_note,create_customer_report,create_incident,incident_view,report_view,transition_incident
 from app.services.customer_context import market_id
+from app.services.score import smart_store_score
 
 router = APIRouter(prefix="/api/v1")
 class RefreshIn(BaseModel): refresh_token:str
@@ -104,11 +106,20 @@ def own_report(report_id: str, user: User = Depends(roles(Role.CUSTOMER)), db: S
 ADMIN_ROLES = (Role.BRANCH_ADMIN, Role.HEAD_OFFICE_ADMIN, Role.PLATFORM_ADMIN)
 
 @router.get("/admin/incidents", response_model=list[IncidentOut])
-def incidents(user: User = Depends(roles(*ADMIN_ROLES)), db: Session = Depends(get_db)):
+def incidents(search:str|None=None,source:str|None=None,category:str|None=None,priority:str|None=None,status:str|None=None,department:str|None=None,overdue_only:bool=False,date_from:datetime|None=None,date_to:datetime|None=None,user: User = Depends(roles(*ADMIN_ROLES)), db: Session = Depends(get_db)):
     query = select(Incident).order_by(Incident.created_at.desc())
     if user.role != Role.PLATFORM_ADMIN: query = query.where(Incident.organisation_id == user.organisation_id)
     if user.role == Role.BRANCH_ADMIN: query = query.where(Incident.branch_id == user.branch_id)
-    return [incident_view(i,db) for i in db.scalars(query).all()]
+    if search:query=query.where(Incident.title.ilike(f"%{search}%")|Incident.description.ilike(f"%{search}%"))
+    if source:query=query.where(Incident.source==source)
+    if category:query=query.where(Incident.category==category)
+    if priority:query=query.where(Incident.priority==priority)
+    if status:query=query.where(Incident.status==status)
+    if department:query=query.where(Incident.responsible_department==department)
+    if date_from:query=query.where(Incident.created_at>=date_from)
+    if date_to:query=query.where(Incident.created_at<=date_to)
+    rows=[incident_view(i,db) for i in db.scalars(query).all()]
+    return [x for x in rows if not overdue_only or x["is_overdue"]]
 
 @router.post("/admin/incidents",response_model=IncidentOut,status_code=201)
 def create_manual_incident(data:ManualIncidentCreate,user:User=Depends(roles(*ADMIN_ROLES)),db:Session=Depends(get_db)):
@@ -141,9 +152,9 @@ def dashboard(user: User = Depends(roles(*ADMIN_ROLES)), db: Session = Depends(g
     query = select(Incident)
     if user.role != Role.PLATFORM_ADMIN: query = query.where(Incident.organisation_id == user.organisation_id)
     if user.role == Role.BRANCH_ADMIN: query = query.where(Incident.branch_id == user.branch_id)
-    rows = db.scalars(query).all(); open_rows = [i for i in rows if i.status.value not in ("MANUALLY_RESOLVED", "AUTO_RESOLVED", "REJECTED", "CANCELLED")]; high = sum(i.priority == "HIGH" for i in open_rows)
-    score = max(0, min(100, 100 - high * 10 - max(0, len(open_rows) - high) * 3))
-    return {"open_incidents": len(open_rows), "high_risk": high, "resolved": len(rows) - len(open_rows), "smart_store_score": score, "score_explanation": "100 − 10 × open high-risk − 3 × other open issues"}
+    rows = db.scalars(query).all(); open_rows = [i for i in rows if i.status.value not in ("MANUALLY_RESOLVED", "AUTO_RESOLVED", "REJECTED", "CANCELLED")]; high = sum(i.priority in ("HIGH","CRITICAL") for i in open_rows)
+    score=smart_store_score(db,user.branch_id) if user.role==Role.BRANCH_ADMIN and user.branch_id else {"score":0,"deductions":[],"additions":[],"explanation":"Select a branch for a canonical score."}
+    return {"open_incidents": len(open_rows),"critical_incidents":sum(i.priority=="CRITICAL" for i in open_rows), "high_risk": high, "resolved": len(rows) - len(open_rows), "smart_store_score": score["score"],"score_detail":score, "score_explanation": score["explanation"]}
 
 @router.get("/health/database")
 def database_health(db: Session = Depends(get_db)): db.execute(text("SELECT 1")); return {"status": "ok"}

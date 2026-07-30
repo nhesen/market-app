@@ -59,7 +59,7 @@ python -m scripts.seed
 python -m alembic check
 ```
 
-The 2026-07-29 clean PostgreSQL re-audit reached Alembic revision `0009 (head)` and `alembic check` printed `No new upgrade operations detected.` The first clean attempt exposed duplicate-column assumptions in revisions 0008/0009 because the baseline creates current metadata; those revisions now inspect the schema before adding their objects. A second newly-created database migrated from zero through 0009 successfully.
+The 2026-07-31 admin-completion audit reached Alembic revision `0010 (head)` and `alembic check` printed `No new upgrade operations detected.` Revision 0010 adds persisted audit templates, template-based task assignment, quality-flag resolution, re-audit due dates and tenant-aware product barcode uniqueness. A newly-created PostgreSQL database migrated from zero through 0010 successfully.
 
 The first seed printed `Seeded 2 organisations, 4 branches and 30 products`; the second printed `Demo data already exists`. Counts stayed `2 organisations / 4 branches / 30 products / 6 users / 2 memberships`, proving idempotency for the seeded rows. Customer market selection is stored separately from tenant ownership through `selected_organisation_id` and `customer_market_memberships`.
 
@@ -101,9 +101,9 @@ npx expo-doctor
 
 The current 2026-07-29 results are:
 
-- backend: `36 passed, 105 warnings in 15.55s`; warnings originate from `python-jose` using deprecated timezone-naive UTC internally;
-- migration: `0009 (head)` and no Alembic drift;
-- admin: ESLint exited 0; Vite 6.4.3 built 1,645 modules in 3.33s (`290.96 kB`, gzip `88.38 kB` JavaScript);
+- backend: `41 passed, 120 warnings in 17.17s`; warnings originate from `python-jose` using deprecated timezone-naive UTC internally;
+- migration: `0010 (head)` and no Alembic drift;
+- admin: ESLint exited 0; Vite 6.4.3 built 1,729 modules in 3.57s (`423.95 kB`, gzip `125.65 kB` JavaScript);
 - mobile: ESLint exited 0; strict TypeScript exited 0; Expo Doctor passed `18/18` checks;
 - translations: `237 AZ keys / 237 EN keys`;
 - runtime auth: all five demo accounts passed login, refresh, `/auth/me`, and logout against the clean PostgreSQL database.

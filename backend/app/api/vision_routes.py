@@ -13,6 +13,7 @@ from app.services.video_pipeline import MP4Pipeline,RULE_ENGINES
 router=APIRouter(prefix="/api/v1");ADMINS=(Role.BRANCH_ADMIN,Role.HEAD_OFFICE_ADMIN,Role.PLATFORM_ADMIN)
 class CameraIn(BaseModel):branch_id:str;name:str;source_path:str;source_type:str="DEMO_MP4";enabled:bool=True
 class RuleIn(BaseModel):camera_id:str;rule_type:str=Field(pattern="^(FLOOR_HAZARD|BLOCKED_AISLE|PROMO_DEPLETION|QUEUE)$");roi:str=Field(pattern=r"^\d?(?:\.\d+)?,\d?(?:\.\d+)?,\d?(?:\.\d+)?,\d?(?:\.\d+)?$");threshold:float=Field(ge=0,le=100);trigger_frames:int=Field(ge=2,le=10000);clear_frames:int=Field(ge=2,le=10000);enabled:bool=True
+class RuleUpdate(BaseModel):threshold:float=Field(ge=0,le=100);trigger_frames:int=Field(ge=2,le=10000);clear_frames:int=Field(ge=2,le=10000);enabled:bool=True
 
 def scoped(stmt,user,model):
     if user.role!=Role.PLATFORM_ADMIN:stmt=stmt.where(model.organisation_id==user.organisation_id)
@@ -43,6 +44,13 @@ def create_rule(data:RuleIn,user:User=Depends(roles(*ADMINS)),db:Session=Depends
     if not allowed_camera(camera,user):raise HTTPException(404,"Camera not found")
     payload=data.model_dump();item=CameraRule(organisation_id=camera.organisation_id,detection_engine=RULE_ENGINES[payload["rule_type"]],**payload);db.add(item);db.commit();db.refresh(item);return item
 
+@router.patch("/admin/camera-rules/{rule_id}")
+def update_rule(rule_id:str,data:RuleUpdate,user:User=Depends(roles(*ADMINS)),db:Session=Depends(get_db)):
+    rule=db.get(CameraRule,rule_id);camera=db.get(Camera,rule.camera_id) if rule else None
+    if not allowed_camera(camera,user):raise HTTPException(404,"Rule not found")
+    for key,value in data.model_dump().items():setattr(rule,key,value)
+    db.commit();db.refresh(rule);return rule
+
 @router.post("/admin/camera-rules/{rule_id}/process")
 def process(rule_id:str,max_frames:int=300,user:User=Depends(roles(*ADMINS)),db:Session=Depends(get_db)):
     rule=db.get(CameraRule,rule_id);camera=db.get(Camera,rule.camera_id) if rule else None
@@ -71,5 +79,5 @@ def health(user:User=Depends(roles(*ADMINS)),db:Session=Depends(get_db)):
     result=[]
     for camera in db.scalars(scoped(select(Camera),user,Camera)).all():
         rules=db.scalars(select(CameraRule).where(CameraRule.camera_id==camera.id)).all()
-        result.append({"camera_id":camera.id,"name":camera.name,"thumbnail_url":"/assets/retail-camera-v2.png","source_type":camera.source_type,"source_active":camera.enabled and not camera.last_error,"last_processed_frame":camera.last_frame_at,"approximate_fps":camera.fps_estimate,"processing_error":camera.last_error,"rules":[{"id":x.id,"rule_type":x.rule_type,"detection_engine":x.detection_engine,"roi":x.roi,"threshold":x.threshold,"trigger_persistence":x.trigger_frames,"clear_persistence":x.clear_frames,"current_state":x.current_state,"last_frame_time":x.last_frame_at,"last_event":x.last_event_id,"processing_error":x.processing_error,"approximate_fps":x.fps_estimate} for x in rules]})
+        result.append({"camera_id":camera.id,"name":camera.name,"thumbnail_url":"/assets/retail-camera-v2.png","source_type":camera.source_type,"source_active":camera.enabled and not camera.last_error,"last_processed_frame":camera.last_frame_at,"approximate_fps":camera.fps_estimate,"processing_error":camera.last_error,"rules":[{"id":x.id,"rule_type":x.rule_type,"detection_engine":x.detection_engine,"roi":x.roi,"threshold":x.threshold,"trigger_persistence":x.trigger_frames,"clear_persistence":x.clear_frames,"enabled":x.enabled,"current_state":x.current_state,"last_frame_time":x.last_frame_at,"last_event":x.last_event_id,"processing_error":x.processing_error,"approximate_fps":x.fps_estimate} for x in rules]})
     return result

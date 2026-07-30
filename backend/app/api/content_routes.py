@@ -19,6 +19,7 @@ class PriceIn(BaseModel): branch_id:str;product_id:str;price:float=Field(gt=0);p
 class CampaignIn(BaseModel): title:str;description:str;starts_on:date;ends_on:date;published:bool=True
 class CampaignProductIn(BaseModel): product_id:str;branch_id:str;discount_price:float=Field(gt=0)
 class CategoryIn(BaseModel): name:str=Field(min_length=2,max_length=100)
+class LoyaltyOfferIn(BaseModel):title_az:str=Field(min_length=2,max_length=180);title_en:str=Field(min_length=2,max_length=180);description_az:str=Field(min_length=2,max_length=2000);description_en:str=Field(min_length=2,max_length=2000);points_cost:int=Field(ge=0,le=1000000);image_url:str="/assets/reward.svg";valid_until:date;active:bool=True
 
 def org_filter(user:User,model): return True if user.role==Role.PLATFORM_ADMIN else model.organisation_id==user.organisation_id
 def log(db:Session,user:User,action:str,kind:str,entity_id:str):db.add(AuditLog(organisation_id=user.organisation_id,actor_id=user.id,action=action,entity_type=kind,entity_id=entity_id))
@@ -165,6 +166,40 @@ def campaign_product(campaign_id:str,data:CampaignProductIn,user:User=Depends(ro
     campaign=db.scalar(select(DiscountCampaign).where(DiscountCampaign.id==campaign_id,DiscountCampaign.organisation_id==user.organisation_id));product=db.scalar(select(Product).where(Product.id==data.product_id,Product.organisation_id==user.organisation_id));branch=db.scalar(select(Branch).where(Branch.id==data.branch_id,Branch.organisation_id==user.organisation_id))
     if not campaign or not product or not branch:raise HTTPException(404,"Campaign, product or branch not found")
     item=DiscountCampaignProduct(organisation_id=user.organisation_id,campaign_id=campaign.id,**data.model_dump());db.add(item);db.commit();db.refresh(item);return item
+
+@router.get("/admin/campaigns/{campaign_id}/products")
+def campaign_products(campaign_id:str,user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
+    campaign=db.get(DiscountCampaign,campaign_id)
+    if not campaign or (user.role!=Role.PLATFORM_ADMIN and campaign.organisation_id!=user.organisation_id):raise HTTPException(404,"Campaign not found")
+    return db.scalars(select(DiscountCampaignProduct).where(DiscountCampaignProduct.campaign_id==campaign.id)).all()
+
+@router.delete("/admin/campaign-products/{item_id}",status_code=204)
+def delete_campaign_product(item_id:str,user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
+    item=db.get(DiscountCampaignProduct,item_id)
+    if not item or (user.role!=Role.PLATFORM_ADMIN and item.organisation_id!=user.organisation_id):raise HTTPException(404,"Campaign product not found")
+    log(db,user,"DELETE","CampaignProduct",item.id);db.delete(item);db.commit()
+
+@router.get("/admin/loyalty-offers")
+def admin_loyalty_offers(user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
+    stmt=select(LoyaltyRewardOffer);stmt=stmt if user.role==Role.PLATFORM_ADMIN else stmt.where(LoyaltyRewardOffer.organisation_id==user.organisation_id);return db.scalars(stmt.order_by(LoyaltyRewardOffer.valid_until.desc())).all()
+
+@router.post("/admin/loyalty-offers",status_code=201)
+def create_loyalty_offer(data:LoyaltyOfferIn,user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
+    if not user.organisation_id:raise HTTPException(422,"Tenant context required")
+    item=LoyaltyRewardOffer(organisation_id=user.organisation_id,**data.model_dump());db.add(item);db.flush();log(db,user,"CREATE","LoyaltyOffer",item.id);db.commit();db.refresh(item);return item
+
+@router.put("/admin/loyalty-offers/{item_id}")
+def update_loyalty_offer(item_id:str,data:LoyaltyOfferIn,user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
+    item=db.get(LoyaltyRewardOffer,item_id)
+    if not item or (user.role!=Role.PLATFORM_ADMIN and item.organisation_id!=user.organisation_id):raise HTTPException(404,"Loyalty offer not found")
+    for key,value in data.model_dump().items():setattr(item,key,value)
+    log(db,user,"UPDATE","LoyaltyOffer",item.id);db.commit();db.refresh(item);return item
+
+@router.delete("/admin/loyalty-offers/{item_id}",status_code=204)
+def delete_loyalty_offer(item_id:str,user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
+    item=db.get(LoyaltyRewardOffer,item_id)
+    if not item or (user.role!=Role.PLATFORM_ADMIN and item.organisation_id!=user.organisation_id):raise HTTPException(404,"Loyalty offer not found")
+    log(db,user,"DELETE","LoyaltyOffer",item.id);db.delete(item);db.commit()
 
 @router.get("/admin/logs")
 def logs(user:User=Depends(roles(Role.HEAD_OFFICE_ADMIN,Role.PLATFORM_ADMIN)),db:Session=Depends(get_db)):

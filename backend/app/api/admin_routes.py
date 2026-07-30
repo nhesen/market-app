@@ -13,10 +13,11 @@ from app.core.security import roles
 from app.db.session import get_db
 from app.models.audit import AuditQualityFlag, AuditResultItem, AuditTask, ReAudit
 from app.models.domain import Branch, CustomerReport, Incident, Organisation, Role, User
-from app.models.retail import AuditLog, FileAsset, OrganisationModule, SystemSetting
+from app.models.retail import AuditLog, BranchService, FileAsset, OrganisationModule, SystemSetting
 from app.models.vision import Camera
-from app.services.incidents import report_view
+from app.services.incidents import incident_view,report_view
 from app.core.time import as_utc, utc_now
+from app.services.score import smart_store_score
 
 router = APIRouter(prefix="/api/v1")
 ADMINS = (Role.BRANCH_ADMIN, Role.HEAD_OFFICE_ADMIN, Role.PLATFORM_ADMIN)
@@ -36,15 +37,25 @@ def allowed_branch(user: User, branch: Branch | None):
 
 
 @router.get("/admin/reports")
-def reports(user: User = Depends(roles(*TENANT_ADMINS)), db: Session = Depends(get_db)):
-    return [report_view(item, db) for item in db.scalars(scoped(select(CustomerReport), user, CustomerReport).order_by(CustomerReport.created_at.desc())).all()]
+def reports(search:str|None=None,category:str|None=None,subcategory:str|None=None,status:str|None=None,date_from:datetime|None=Query(None),date_to:datetime|None=Query(None),user: User = Depends(roles(*TENANT_ADMINS)), db: Session = Depends(get_db)):
+    stmt=scoped(select(CustomerReport),user,CustomerReport)
+    if search:stmt=stmt.where(CustomerReport.title.ilike(f"%{search}%")|CustomerReport.tracking_number.ilike(f"%{search}%"))
+    if category:stmt=stmt.where(CustomerReport.category==category)
+    if subcategory:stmt=stmt.where(CustomerReport.subcategory==subcategory)
+    if status:stmt=stmt.where(CustomerReport.status==status)
+    if date_from:stmt=stmt.where(CustomerReport.created_at>=date_from)
+    if date_to:stmt=stmt.where(CustomerReport.created_at<=date_to)
+    return [admin_report_view(item,db) for item in db.scalars(stmt.order_by(CustomerReport.created_at.desc())).all()]
+
+def admin_report_view(item:CustomerReport,db:Session):
+    result=report_view(item,db);result["incident_id"]=item.incident.id;result["incident"]=incident_view(item.incident,db);customer=db.get(User,item.customer_id);result["customer"]={"id":customer.id,"full_name":customer.full_name,"email":customer.email} if customer else None;return result
 
 
 @router.get("/admin/reports/{report_id}")
 def report_detail(report_id: str, user: User = Depends(roles(*TENANT_ADMINS)), db: Session = Depends(get_db)):
     item = db.scalar(scoped(select(CustomerReport).where(CustomerReport.id == report_id), user, CustomerReport))
     if not item: raise HTTPException(404, "Report not found")
-    return report_view(item, db)
+    return admin_report_view(item, db)
 
 
 @router.get("/admin/audits")
@@ -73,7 +84,7 @@ def admin_branches(user: User = Depends(roles(*ADMINS)), db: Session = Depends(g
     stmt = select(Branch)
     if user.role != Role.PLATFORM_ADMIN: stmt = stmt.where(Branch.organisation_id == user.organisation_id)
     if user.role == Role.BRANCH_ADMIN: stmt = stmt.where(Branch.id == user.branch_id)
-    return db.scalars(stmt.order_by(Branch.name)).all()
+    rows=db.scalars(stmt.order_by(Branch.name)).all();return [{"id":x.id,"organisation_id":x.organisation_id,"name":x.name,"address":x.address,"hours":x.hours,"is_open":x.is_open,"distance_km":x.distance_km,"services":[s.name for s in db.scalars(select(BranchService).where(BranchService.branch_id==x.id)).all()]} for x in rows]
 
 
 class BranchSettingsIn(BaseModel):
@@ -81,13 +92,17 @@ class BranchSettingsIn(BaseModel):
     address: str = Field(min_length=3, max_length=255)
     hours: str = Field(min_length=3, max_length=80)
     is_open: bool
+    services:list[str]=Field(default_factory=list,max_length=30)
 
 
 @router.patch("/admin/branches/{branch_id}")
 def update_branch(branch_id: str, data: BranchSettingsIn, user: User = Depends(roles(*ADMINS)), db: Session = Depends(get_db)):
     branch = db.get(Branch, branch_id)
     if not allowed_branch(user, branch): raise HTTPException(404, "Branch not found")
-    for key, value in data.model_dump().items(): setattr(branch, key, value)
+    payload=data.model_dump();services=payload.pop("services")
+    for key, value in payload.items(): setattr(branch, key, value)
+    db.query(BranchService).filter(BranchService.branch_id==branch.id).delete()
+    for name in sorted({x.strip().upper() for x in services if x.strip()}):db.add(BranchService(organisation_id=branch.organisation_id,branch_id=branch.id,name=name))
     db.add(AuditLog(organisation_id=branch.organisation_id, actor_id=user.id, action="UPDATE", entity_type="Branch", entity_id=branch.id))
     db.commit(); db.refresh(branch); return branch
 
@@ -101,12 +116,12 @@ def network_analytics(user: User = Depends(roles(Role.HEAD_OFFICE_ADMIN)), db: S
         flags = db.scalar(select(func.count(AuditQualityFlag.id)).where(AuditQualityFlag.branch_id == branch.id)) or 0
         open_count = sum(item.status.value not in ("MANUALLY_RESOLVED", "AUTO_RESOLVED", "REJECTED", "CANCELLED") for item in incidents)
         high = sum(item.priority == "HIGH" and item.status.value not in ("MANUALLY_RESOLVED", "AUTO_RESOLVED", "REJECTED", "CANCELLED") for item in incidents)
-        score = max(0, 100-high*10-max(0, open_count-high)*3-flags*2)
-        output.append({"branch_id": branch.id, "branch": branch.name, "open_incidents": open_count, "high_risk": high, "quality_flags": flags, "score": score})
+        score = smart_store_score(db, branch.id);closed={"MANUALLY_RESOLVED","AUTO_RESOLVED","REJECTED","CANCELLED"};resolved=[x for x in incidents if x.status.value in {"MANUALLY_RESOLVED","AUTO_RESOLVED"}];hours=[(as_utc(x.updated_at)-as_utc(x.created_at)).total_seconds()/3600 for x in resolved];tasks=db.scalars(select(AuditTask).where(AuditTask.branch_id==branch.id)).all();camera=[x for x in incidents if x.source.value=="CAMERA_EVENT"]
+        output.append({"branch_id": branch.id, "branch": branch.name, "open_incidents": open_count, "critical_incidents":sum(item.priority=="CRITICAL" and item.status.value not in closed for item in incidents),"overdue":sum(bool(x.sla_due_at and as_utc(x.sla_due_at)<utc_now() and x.status.value not in closed) for x in incidents),"average_resolution_hours":round(sum(hours)/len(hours),2) if hours else 0,"audit_completion_rate":round(sum(getattr(x.status,"value",x.status)=="COMPLETED" for x in tasks)/max(len(tasks),1)*100,1),"camera_false_alert_rate":round(sum(x.status.value=="REJECTED" for x in camera)/max(len(camera),1)*100,1), "high_risk": high, "quality_flags": flags, "score": score["score"], "score_detail":score})
     return output
 
 @router.get("/admin/operational-analytics")
-def operational_analytics(branch_id:str|None=None,status:str|None=None,source:str|None=None,category:str|None=None,date_from:datetime|None=Query(None),date_to:datetime|None=Query(None),user:User=Depends(roles(*TENANT_ADMINS)),db:Session=Depends(get_db)):
+def operational_analytics(branch_id:str|None=None,status:str|None=None,source:str|None=None,category:str|None=None,priority:str|None=None,date_from:datetime|None=Query(None),date_to:datetime|None=Query(None),user:User=Depends(roles(*TENANT_ADMINS)),db:Session=Depends(get_db)):
     stmt=scoped(select(Incident),user,Incident)
     if branch_id:
         branch=db.get(Branch,branch_id)
@@ -115,6 +130,7 @@ def operational_analytics(branch_id:str|None=None,status:str|None=None,source:st
     if status:stmt=stmt.where(Incident.status==status)
     if source:stmt=stmt.where(Incident.source==source)
     if category:stmt=stmt.where(Incident.category==category)
+    if priority:stmt=stmt.where(Incident.priority==priority)
     if date_from:stmt=stmt.where(Incident.created_at>=date_from)
     if date_to:stmt=stmt.where(Incident.created_at<=date_to)
     rows=db.scalars(stmt.order_by(Incident.created_at)).unique().all();now=utc_now()
@@ -124,7 +140,10 @@ def operational_analytics(branch_id:str|None=None,status:str|None=None,source:st
     verification_candidates=[x for x in rows if x.source.value=="CUSTOMER_REPORT" and any(h.status.value=="RESOLUTION_CANDIDATE" for h in x.history)]
     verified_customers=[x for x in verification_candidates if x.status.value in {"MANUALLY_RESOLVED","REOPENED"}]
     count=lambda values,key:[{"name":name,"value":value} for name,value in sorted(Counter(key(x) for x in values).items())]
-    return {"filters":{"branch_id":branch_id,"status":status,"source":source,"category":category,"date_from":date_from,"date_to":date_to},"summary":{"total":len(rows),"open":sum(x.status.value not in closed for x in rows),"overdue":sum(bool(x.sla_due_at and as_utc(x.sla_due_at)<now and x.status.value not in closed) for x in rows),"resolved":len(resolved),"average_resolution_hours":round(sum(resolution_hours)/len(resolution_hours),2) if resolution_hours else 0,"median_resolution_hours":round(median(resolution_hours),2) if resolution_hours else 0,"auto_resolved":sum(x.status.value=="AUTO_RESOLVED" for x in rows),"manual_resolved":sum(x.status.value=="MANUALLY_RESOLVED" for x in rows),"customer_verification_rate":round(len(verified_customers)/len(verification_candidates)*100,1) if verification_candidates else 0,"re_audit_consistency_rate":round(sum(bool(x.consistent) for x in completed_re)/len(completed_re)*100,1) if completed_re else 0},"by_source":count(rows,lambda x:x.source.value),"by_status":count(rows,lambda x:x.status.value),"by_category":count(rows,lambda x:x.category),"by_hour":count(rows,lambda x:f"{as_utc(x.created_at).hour:02d}:00"),"recurring_issues":sorted(count(rows,lambda x:x.category),key=lambda x:x["value"],reverse=True)[:5]}
+    task_stmt=scoped(select(AuditTask),user,AuditTask)
+    if branch_id:task_stmt=task_stmt.where(AuditTask.branch_id==branch_id)
+    tasks=db.scalars(task_stmt).all();completed_tasks=sum(getattr(x.status,"value",x.status)=="COMPLETED" for x in tasks);camera_rows=[x for x in rows if x.source.value=="CAMERA_EVENT"];today=now.date()
+    return {"filters":{"branch_id":branch_id,"status":status,"source":source,"category":category,"priority":priority,"date_from":date_from,"date_to":date_to},"summary":{"total":len(rows),"open":sum(x.status.value not in closed for x in rows),"critical":sum(x.priority=="CRITICAL" and x.status.value not in closed for x in rows),"overdue":sum(bool(x.sla_due_at and as_utc(x.sla_due_at)<now and x.status.value not in closed) for x in rows),"resolved":len(resolved),"resolved_today":sum(as_utc(x.updated_at).date()==today for x in resolved),"average_resolution_hours":round(sum(resolution_hours)/len(resolution_hours),2) if resolution_hours else 0,"median_resolution_hours":round(median(resolution_hours),2) if resolution_hours else 0,"auto_resolved":sum(x.status.value=="AUTO_RESOLVED" for x in rows),"manual_resolved":sum(x.status.value=="MANUALLY_RESOLVED" for x in rows),"auto_resolve_rate":round(sum(x.status.value=="AUTO_RESOLVED" for x in resolved)/len(resolved)*100,1) if resolved else 0,"manual_resolve_rate":round(sum(x.status.value=="MANUALLY_RESOLVED" for x in resolved)/len(resolved)*100,1) if resolved else 0,"customer_verification_rate":round(len(verified_customers)/len(verification_candidates)*100,1) if verification_candidates else 0,"audit_completion_rate":round(completed_tasks/max(len(tasks),1)*100,1),"re_audit_consistency_rate":round(sum(bool(x.consistent) for x in completed_re)/len(completed_re)*100,1) if completed_re else 0,"camera_false_alert_rate":round(sum(x.status.value=="REJECTED" for x in camera_rows)/max(len(camera_rows),1)*100,1)},"by_source":count(rows,lambda x:x.source.value),"by_status":count(rows,lambda x:x.status.value),"by_category":count(rows,lambda x:x.category),"by_priority":count(rows,lambda x:x.priority),"by_hour":count(rows,lambda x:f"{as_utc(x.created_at).hour:02d}:00"),"recurring_issues":sorted(count(rows,lambda x:x.category),key=lambda x:x["value"],reverse=True)[:5]}
 
 
 @router.get("/platform/organisations/{organisation_id}")
@@ -158,7 +177,7 @@ def set_module(data: ModuleIn, user: User = Depends(roles(Role.PLATFORM_ADMIN)),
     if not db.get(Organisation, data.organisation_id): raise HTTPException(404, "Organisation not found")
     item = db.scalar(select(OrganisationModule).where(OrganisationModule.organisation_id == data.organisation_id, OrganisationModule.module == data.module))
     if not item: item = OrganisationModule(organisation_id=data.organisation_id, module=data.module); db.add(item)
-    item.enabled = data.enabled; db.commit(); db.refresh(item); return item
+    item.enabled = data.enabled;db.flush();db.add(AuditLog(actor_id=user.id,action="UPDATE",entity_type="OrganisationModule",entity_id=item.id,detail=f"{data.module} enabled={data.enabled}")); db.commit(); db.refresh(item); return item
 
 
 @router.get("/platform/health")
@@ -195,7 +214,7 @@ def set_setting(data: SettingIn, user: User = Depends(roles(Role.PLATFORM_ADMIN)
     item = db.scalar(select(SystemSetting).where(SystemSetting.key == data.key))
     if not item: item = SystemSetting(key=data.key, value=data.value); db.add(item)
     else: item.value = data.value
-    db.commit(); db.refresh(item); return item
+    db.flush();db.add(AuditLog(actor_id=user.id,action="UPDATE",entity_type="SystemSetting",entity_id=item.id,detail=data.key));db.commit(); db.refresh(item); return item
 
 
 class ResetIn(BaseModel):

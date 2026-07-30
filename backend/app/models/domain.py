@@ -104,11 +104,12 @@ class News(Base):
 
 class Product(Base):
     __tablename__ = "products"
+    __table_args__ = (UniqueConstraint("organisation_id", "barcode", name="uq_product_org_barcode"),)
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     organisation_id: Mapped[str] = mapped_column(ForeignKey("organisations.id"), index=True)
     name: Mapped[str] = mapped_column(String(180))
     brand: Mapped[str] = mapped_column(String(120))
-    barcode: Mapped[str] = mapped_column(String(32), unique=True)
+    barcode: Mapped[str] = mapped_column(String(32))
     category: Mapped[str] = mapped_column(String(80))
     price: Mapped[float] = mapped_column(Float)
     discount_price: Mapped[float | None] = mapped_column(Float, nullable=True)
