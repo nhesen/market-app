@@ -1,2 +1,62 @@
-import{useState}from"react";import{Alert,StyleSheet,Text,TextInput}from"react-native";import{Button,Card,PageTitle,Screen}from"../components/ui";import{colors}from"../constants/theme";import{customerApi}from"../services/api";import{useI18n}from"../services/i18n";
-export default function Privacy(){const{t}=useI18n();const[reason,setReason]=useState(""),[busy,setBusy]=useState(false);function confirm(){Alert.alert(t("deleteAccount"),t("confirmDelete"),[{text:t("cancel"),style:"cancel"},{text:t("submit"),style:"destructive",onPress:async()=>{setBusy(true);try{await customerApi.deleteRequest(reason);Alert.alert(t("deleteAccepted"));setReason("")}finally{setBusy(false)}}}])}return <Screen><PageTitle title={t("privacy")} subtitle={t("simulated")}/><Card><Text style={s.title}>{t("deleteAccount")}</Text><TextInput style={s.input} multiline placeholder={t("deleteReason")} value={reason} onChangeText={setReason}/><Button disabled={busy} secondary title={t("deleteAccount")} onPress={confirm}/></Card></Screen>};const s=StyleSheet.create({title:{fontSize:18,fontWeight:"900",color:colors.red},input:{height:110,textAlignVertical:"top",borderWidth:1,borderColor:colors.border,borderRadius:13,padding:13}});
+import { useState } from "react";
+import { Alert, StyleSheet, Text, TextInput } from "react-native";
+import { Button, Card, PageTitle, Screen } from "../components/ui";
+import { colors } from "../constants/theme";
+import { customerApi } from "../services/api";
+import { useI18n } from "../services/i18n";
+export default function Privacy() {
+  const { t } = useI18n();
+  const [reason, setReason] = useState(""),
+    [busy, setBusy] = useState(false);
+  function confirm() {
+    Alert.alert(t("deleteAccount"), t("confirmDelete"), [
+      { text: t("cancel"), style: "cancel" },
+      {
+        text: t("submit"),
+        style: "destructive",
+        onPress: async () => {
+          setBusy(true);
+          try {
+            await customerApi.deleteRequest(reason);
+            Alert.alert(t("deleteAccepted"));
+            setReason("");
+          } finally {
+            setBusy(false);
+          }
+        },
+      },
+    ]);
+  }
+  return (
+    <Screen>
+      <PageTitle title={t("privacy")} subtitle={t("simulated")} />
+      <Card>
+        <Text style={s.title}>{t("deleteAccount")}</Text>
+        <TextInput
+          style={s.input}
+          multiline
+          placeholder={t("deleteReason")}
+          value={reason}
+          onChangeText={setReason}
+        />
+        <Button
+          disabled={busy}
+          secondary
+          title={t("deleteAccount")}
+          onPress={confirm}
+        />
+      </Card>
+    </Screen>
+  );
+}
+const s = StyleSheet.create({
+  title: { fontSize: 18, fontWeight: "900", color: colors.red },
+  input: {
+    height: 110,
+    textAlignVertical: "top",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 13,
+    padding: 13,
+  },
+});

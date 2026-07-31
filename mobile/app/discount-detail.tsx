@@ -1,3 +1,145 @@
-import{Ionicons}from"@expo/vector-icons";import{router,useLocalSearchParams}from"expo-router";import{useMutation,useQuery,useQueryClient}from"@tanstack/react-query";import{StyleSheet,Text,View}from"react-native";import{Button,Card,PageTitle,RemoteImage,Screen,State}from"../components/ui";import{colors}from"../constants/theme";import{customerApi}from"../services/api";import{useI18n}from"../services/i18n";
-export default function DiscountDetail(){const{id}=useLocalSearchParams<{id:string}>(),{t,language}=useI18n(),client=useQueryClient();const q=useQuery({queryKey:["discount",id],queryFn:()=>customerApi.discount(id!),enabled:Boolean(id)});const fav=useQuery({queryKey:["campaign-favourites"],queryFn:customerApi.campaignFavourites});const saved=Boolean(fav.data?.includes(id!));const toggle=useMutation({mutationFn:()=>saved?customerApi.unfavouriteCampaign(id!):customerApi.favouriteCampaign(id!),onSuccess:()=>client.invalidateQueries({queryKey:["campaign-favourites"]})});const c=q.data;return <Screen><State loading={q.isLoading} error={q.isError} retry={()=>q.refetch()}/>{c?<><View style={s.hero}><Ionicons name="gift" size={58} color="white"/><Text style={s.heroText}>{t("activeOnly").toUpperCase()}</Text></View><PageTitle title={c.title} subtitle={c.description}/><Text style={s.date}>{t("campaignPeriod")}: {new Date(c.starts_on).toLocaleDateString(language==="az"?"az-AZ":"en-GB")} — {new Date(c.ends_on).toLocaleDateString(language==="az"?"az-AZ":"en-GB")}</Text><Button secondary title={saved?t("unfavourite"):t("favourite")} icon={saved?"heart":"heart-outline"} onPress={()=>toggle.mutate()}/><Card><Text style={s.section}>{t("participatingBranches")}</Text>{c.branches?.map((b:any)=><Text key={b.id} style={s.branch}>• {b.name}</Text>)}</Card><Text style={s.section}>{t("discountProducts")}</Text>{c.products.map((p:any)=><Card key={`${p.id}-${p.branch_id}`} onPress={()=>router.push({pathname:"/product-detail" as never,params:{id:p.id}})}><View style={s.row}><View style={{width:82}}><RemoteImage url={p.image_url} height={82}/></View><View style={{flex:1}}><Text style={s.title}>{p.name}</Text><Text style={s.brand}>{p.brand} · {p.branch_name}</Text><View style={s.prices}><Text style={s.old}>{p.original_price.toFixed(2)}</Text><Text style={s.new}>{p.discount_price.toFixed(2)} {t("currency")}</Text><Text style={s.badge}>-{Math.round((1-p.discount_price/p.original_price)*100)}%</Text></View></View></View></Card>)}</>:null}</Screen>}
-const s=StyleSheet.create({hero:{height:160,borderRadius:22,backgroundColor:colors.deepNavy,alignItems:"center",justifyContent:"center",gap:9},heroText:{color:"#9FC1FF",fontWeight:"900",letterSpacing:1.5},date:{color:colors.muted},section:{fontWeight:"900",fontSize:18,color:colors.navy},branch:{color:colors.muted,lineHeight:22},row:{flexDirection:"row",gap:12},title:{fontSize:17,fontWeight:"900",color:colors.navy},brand:{color:colors.muted,fontSize:12},prices:{flexDirection:"row",alignItems:"center",gap:8,marginTop:7},old:{textDecorationLine:"line-through",color:colors.muted},new:{fontSize:20,fontWeight:"900",color:colors.blue},badge:{backgroundColor:colors.softGreen,color:colors.green,fontWeight:"900",padding:5,borderRadius:8}});
+import { Ionicons } from "@expo/vector-icons";
+import { router, useLocalSearchParams } from "expo-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { StyleSheet, Text, View } from "react-native";
+import {
+  Button,
+  Card,
+  PageTitle,
+  RemoteImage,
+  Screen,
+  State,
+} from "../components/ui";
+import { colors } from "../constants/theme";
+import { customerApi } from "../services/api";
+import { useI18n } from "../services/i18n";
+export default function DiscountDetail() {
+  const { id } = useLocalSearchParams<{ id: string }>(),
+    { t, language } = useI18n(),
+    client = useQueryClient();
+  const q = useQuery({
+    queryKey: ["discount", id],
+    queryFn: () => customerApi.discount(id!),
+    enabled: Boolean(id),
+  });
+  const fav = useQuery({
+    queryKey: ["campaign-favourites"],
+    queryFn: customerApi.campaignFavourites,
+  });
+  const saved = Boolean(fav.data?.includes(id!));
+  const toggle = useMutation({
+    mutationFn: () =>
+      saved
+        ? customerApi.unfavouriteCampaign(id!)
+        : customerApi.favouriteCampaign(id!),
+    onSuccess: () =>
+      client.invalidateQueries({ queryKey: ["campaign-favourites"] }),
+  });
+  const c = q.data;
+  return (
+    <Screen>
+      <State
+        loading={q.isLoading}
+        error={q.isError}
+        retry={() => q.refetch()}
+      />
+      {c ? (
+        <>
+          <View style={s.hero}>
+            <Ionicons name="gift" size={58} color="white" />
+            <Text style={s.heroText}>{t("activeOnly").toUpperCase()}</Text>
+          </View>
+          <PageTitle title={c.title} subtitle={c.description} />
+          <Text style={s.date}>
+            {t("campaignPeriod")}:{" "}
+            {new Date(c.starts_on).toLocaleDateString(
+              language === "az" ? "az-AZ" : "en-GB",
+            )}{" "}
+            —{" "}
+            {new Date(c.ends_on).toLocaleDateString(
+              language === "az" ? "az-AZ" : "en-GB",
+            )}
+          </Text>
+          <Button
+            secondary
+            title={saved ? t("unfavourite") : t("favourite")}
+            icon={saved ? "heart" : "heart-outline"}
+            onPress={() => toggle.mutate()}
+          />
+          <Card>
+            <Text style={s.section}>{t("participatingBranches")}</Text>
+            {c.branches?.map((b: any) => (
+              <Text key={b.id} style={s.branch}>
+                • {b.name}
+              </Text>
+            ))}
+          </Card>
+          <Text style={s.section}>{t("discountProducts")}</Text>
+          {c.products.map((p: any) => (
+            <Card
+              key={`${p.id}-${p.branch_id}`}
+              onPress={() =>
+                router.push({
+                  pathname: "/product-detail" as never,
+                  params: { id: p.id },
+                })
+              }
+            >
+              <View style={s.row}>
+                <View style={{ width: 82 }}>
+                  <RemoteImage url={p.image_url} height={82} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.title}>{p.name}</Text>
+                  <Text style={s.brand}>
+                    {p.brand} · {p.branch_name}
+                  </Text>
+                  <View style={s.prices}>
+                    <Text style={s.old}>{p.original_price.toFixed(2)}</Text>
+                    <Text style={s.new}>
+                      {p.discount_price.toFixed(2)} {t("currency")}
+                    </Text>
+                    <Text style={s.badge}>
+                      -
+                      {Math.round(
+                        (1 - p.discount_price / p.original_price) * 100,
+                      )}
+                      %
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </Card>
+          ))}
+        </>
+      ) : null}
+    </Screen>
+  );
+}
+const s = StyleSheet.create({
+  hero: {
+    height: 160,
+    borderRadius: 22,
+    backgroundColor: colors.deepNavy,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 9,
+  },
+  heroText: { color: "#9FC1FF", fontWeight: "900", letterSpacing: 1.5 },
+  date: { color: colors.muted },
+  section: { fontWeight: "900", fontSize: 18, color: colors.navy },
+  branch: { color: colors.muted, lineHeight: 22 },
+  row: { flexDirection: "row", gap: 12 },
+  title: { fontSize: 17, fontWeight: "900", color: colors.navy },
+  brand: { color: colors.muted, fontSize: 12 },
+  prices: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 7 },
+  old: { textDecorationLine: "line-through", color: colors.muted },
+  new: { fontSize: 20, fontWeight: "900", color: colors.blue },
+  badge: {
+    backgroundColor: colors.softGreen,
+    color: colors.green,
+    fontWeight: "900",
+    padding: 5,
+    borderRadius: 8,
+  },
+});

@@ -1,2 +1,51 @@
-import{useState}from"react";import{Alert,StyleSheet,Text,TextInput}from"react-native";import{router}from"expo-router";import{Button,Card,PageTitle,Screen}from"../components/ui";import{colors}from"../constants/theme";import{forgotPassword}from"../services/api";import{useI18n}from"../services/i18n";
-export default function ForgotPassword(){const{t}=useI18n();const[email,setEmail]=useState(""),[busy,setBusy]=useState(false);async function send(){setBusy(true);try{await forgotPassword(email.trim());Alert.alert(t("forgotSent"),t("forgotSentBody"));router.back()}finally{setBusy(false)}}return <Screen><PageTitle title={t("forgotTitle")} subtitle={t("forgotBody")}/><Card><Text style={s.label}>{t("email")}</Text><TextInput style={s.input} autoCapitalize="none" keyboardType="email-address" value={email} onChangeText={setEmail}/><Button disabled={busy||!email.includes("@")} title={t("sendInstructions")} onPress={send}/></Card></Screen>};const s=StyleSheet.create({label:{fontWeight:"800",color:colors.navy},input:{borderWidth:1,borderColor:colors.border,borderRadius:13,padding:14}});
+import { useState } from "react";
+import { Alert, StyleSheet, Text, TextInput } from "react-native";
+import { router } from "expo-router";
+import { Button, Card, PageTitle, Screen } from "../components/ui";
+import { colors } from "../constants/theme";
+import { forgotPassword } from "../services/api";
+import { useI18n } from "../services/i18n";
+export default function ForgotPassword() {
+  const { t } = useI18n();
+  const [email, setEmail] = useState(""),
+    [busy, setBusy] = useState(false);
+  async function send() {
+    setBusy(true);
+    try {
+      await forgotPassword(email.trim());
+      Alert.alert(t("forgotSent"), t("forgotSentBody"));
+      router.back();
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Screen>
+      <PageTitle title={t("forgotTitle")} subtitle={t("forgotBody")} />
+      <Card>
+        <Text style={s.label}>{t("email")}</Text>
+        <TextInput
+          style={s.input}
+          autoCapitalize="none"
+          keyboardType="email-address"
+          value={email}
+          onChangeText={setEmail}
+        />
+        <Button
+          disabled={busy || !email.includes("@")}
+          title={t("sendInstructions")}
+          onPress={send}
+        />
+      </Card>
+    </Screen>
+  );
+}
+const s = StyleSheet.create({
+  label: { fontWeight: "800", color: colors.navy },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 13,
+    padding: 14,
+  },
+});

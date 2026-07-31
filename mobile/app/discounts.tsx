@@ -1,3 +1,157 @@
-import{useState}from"react";import{Ionicons}from"@expo/vector-icons";import{router}from"expo-router";import{useMutation,useQuery,useQueryClient}from"@tanstack/react-query";import{Pressable,ScrollView,StyleSheet,Text,View}from"react-native";import{Card,Chip,PageTitle,RemoteImage,Screen,State}from"../components/ui";import{colors}from"../constants/theme";import{customerApi}from"../services/api";import{useI18n}from"../services/i18n";
-export default function Discounts(){const{t,language}=useI18n(),[savedOnly,setSavedOnly]=useState(false),[category,setCategory]=useState(""),client=useQueryClient();const q=useQuery({queryKey:["discounts",category],queryFn:()=>customerApi.discounts(category)});const categories=useQuery({queryKey:["categories"],queryFn:customerApi.categories});const fav=useQuery({queryKey:["campaign-favourites"],queryFn:customerApi.campaignFavourites});const ids=new Set(fav.data);const toggle=useMutation({mutationFn:(id:string)=>ids.has(id)?customerApi.unfavouriteCampaign(id):customerApi.favouriteCampaign(id),onSuccess:()=>client.invalidateQueries({queryKey:["campaign-favourites"]})});const rows=q.data?.filter(x=>!savedOnly||ids.has(x.id));return <Screen refreshing={q.isRefetching} onRefresh={()=>q.refetch()}><PageTitle title={t("discountsTitle")} subtitle={t("discountsSubtitle")}/><View style={s.tabs}><Chip label={t("activeOnly")} active={!savedOnly} onPress={()=>setSavedOnly(false)}/><Chip label={t("savedOnly")} active={savedOnly} onPress={()=>setSavedOnly(true)}/></View><Text style={s.filterLabel}>{t("category")}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.chips}><Chip label={t("all")} active={!category} onPress={()=>setCategory("")}/>{categories.data?.map(x=><Chip key={x} label={x} active={category===x} onPress={()=>setCategory(x)}/>)}</ScrollView><State loading={q.isLoading||fav.isLoading||categories.isLoading} error={q.isError||fav.isError} retry={()=>q.refetch()} empty={!rows?.length?t("noCampaigns"):undefined}/>{rows?.map(c=><Card key={c.id} onPress={()=>router.push({pathname:"/discount-detail" as never,params:{id:c.id}})}><RemoteImage url={c.image_url} height={145}/><View style={s.hero}><View style={s.percent}><Ionicons name="pricetag" size={27} color="white"/></View><View style={{flex:1}}><Text style={s.title}>{c.title}</Text><Text numberOfLines={2} style={s.meta}>{c.description}</Text></View><Pressable onPress={event=>{event.stopPropagation();toggle.mutate(c.id)}}><Ionicons name={ids.has(c.id)?"heart":"heart-outline"} size={27} color={colors.red}/></Pressable></View><Text style={s.date}>{new Date(c.starts_on).toLocaleDateString(language==="az"?"az-AZ":"en-GB")} — {new Date(c.ends_on).toLocaleDateString(language==="az"?"az-AZ":"en-GB")}</Text><Text style={s.count}>{c.products.length} {t("discountProducts").toLowerCase()} · {c.branches?.length??0} {t("participatingBranches").toLowerCase()}</Text></Card>)}</Screen>}
-const s=StyleSheet.create({tabs:{flexDirection:"row",gap:9},filterLabel:{fontWeight:"900",color:colors.navy},chips:{gap:8,paddingRight:10},hero:{flexDirection:"row",alignItems:"center",gap:13},percent:{width:58,height:58,borderRadius:18,backgroundColor:colors.blue,alignItems:"center",justifyContent:"center"},title:{fontSize:18,fontWeight:"900",color:colors.navy},meta:{color:colors.muted,marginTop:4},date:{color:colors.muted},count:{color:colors.blue,fontWeight:"800"}});
+import { useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Card,
+  Chip,
+  PageTitle,
+  RemoteImage,
+  Screen,
+  State,
+} from "../components/ui";
+import { colors } from "../constants/theme";
+import { customerApi } from "../services/api";
+import { useI18n } from "../services/i18n";
+export default function Discounts() {
+  const { t, language } = useI18n(),
+    [savedOnly, setSavedOnly] = useState(false),
+    [category, setCategory] = useState(""),
+    client = useQueryClient();
+  const q = useQuery({
+    queryKey: ["discounts", category],
+    queryFn: () => customerApi.discounts(category),
+  });
+  const categories = useQuery({
+    queryKey: ["categories"],
+    queryFn: customerApi.categories,
+  });
+  const fav = useQuery({
+    queryKey: ["campaign-favourites"],
+    queryFn: customerApi.campaignFavourites,
+  });
+  const ids = new Set(fav.data);
+  const toggle = useMutation({
+    mutationFn: (id: string) =>
+      ids.has(id)
+        ? customerApi.unfavouriteCampaign(id)
+        : customerApi.favouriteCampaign(id),
+    onSuccess: () =>
+      client.invalidateQueries({ queryKey: ["campaign-favourites"] }),
+  });
+  const rows = q.data?.filter((x) => !savedOnly || ids.has(x.id));
+  return (
+    <Screen refreshing={q.isRefetching} onRefresh={() => q.refetch()}>
+      <PageTitle
+        title={t("discountsTitle")}
+        subtitle={t("discountsSubtitle")}
+      />
+      <View style={s.tabs}>
+        <Chip
+          label={t("activeOnly")}
+          active={!savedOnly}
+          onPress={() => setSavedOnly(false)}
+        />
+        <Chip
+          label={t("savedOnly")}
+          active={savedOnly}
+          onPress={() => setSavedOnly(true)}
+        />
+      </View>
+      <Text style={s.filterLabel}>{t("category")}</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.chips}
+      >
+        <Chip
+          label={t("all")}
+          active={!category}
+          onPress={() => setCategory("")}
+        />
+        {categories.data?.map((x) => (
+          <Chip
+            key={x}
+            label={x}
+            active={category === x}
+            onPress={() => setCategory(x)}
+          />
+        ))}
+      </ScrollView>
+      <State
+        loading={q.isLoading || fav.isLoading || categories.isLoading}
+        error={q.isError || fav.isError}
+        retry={() => q.refetch()}
+        empty={!rows?.length ? t("noCampaigns") : undefined}
+      />
+      {rows?.map((c) => (
+        <Card
+          key={c.id}
+          onPress={() =>
+            router.push({
+              pathname: "/discount-detail" as never,
+              params: { id: c.id },
+            })
+          }
+        >
+          <RemoteImage url={c.image_url} height={145} />
+          <View style={s.hero}>
+            <View style={s.percent}>
+              <Ionicons name="pricetag" size={27} color="white" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.title}>{c.title}</Text>
+              <Text numberOfLines={2} style={s.meta}>
+                {c.description}
+              </Text>
+            </View>
+            <Pressable
+              onPress={(event) => {
+                event.stopPropagation();
+                toggle.mutate(c.id);
+              }}
+            >
+              <Ionicons
+                name={ids.has(c.id) ? "heart" : "heart-outline"}
+                size={27}
+                color={colors.red}
+              />
+            </Pressable>
+          </View>
+          <Text style={s.date}>
+            {new Date(c.starts_on).toLocaleDateString(
+              language === "az" ? "az-AZ" : "en-GB",
+            )}{" "}
+            —{" "}
+            {new Date(c.ends_on).toLocaleDateString(
+              language === "az" ? "az-AZ" : "en-GB",
+            )}
+          </Text>
+          <Text style={s.count}>
+            {c.products.length} {t("discountProducts").toLowerCase()} ·{" "}
+            {c.branches?.length ?? 0} {t("participatingBranches").toLowerCase()}
+          </Text>
+        </Card>
+      ))}
+    </Screen>
+  );
+}
+const s = StyleSheet.create({
+  tabs: { flexDirection: "row", gap: 9 },
+  filterLabel: { fontWeight: "900", color: colors.navy },
+  chips: { gap: 8, paddingRight: 10 },
+  hero: { flexDirection: "row", alignItems: "center", gap: 13 },
+  percent: {
+    width: 58,
+    height: 58,
+    borderRadius: 18,
+    backgroundColor: colors.blue,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  title: { fontSize: 18, fontWeight: "900", color: colors.navy },
+  meta: { color: colors.muted, marginTop: 4 },
+  date: { color: colors.muted },
+  count: { color: colors.blue, fontWeight: "800" },
+});

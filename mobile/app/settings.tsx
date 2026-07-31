@@ -1,2 +1,69 @@
-import{useEffect,useState}from"react";import{useMutation,useQuery}from"@tanstack/react-query";import{StyleSheet,Switch,Text,View}from"react-native";import{Button,Card,PageTitle,Screen,State}from"../components/ui";import{colors}from"../constants/theme";import{customerApi}from"../services/api";import{useI18n}from"../services/i18n";
-export default function Settings(){const{t}=useI18n();const q=useQuery({queryKey:["preferences"],queryFn:customerApi.preferences});const[state,setState]=useState<Record<string,boolean>>({});useEffect(()=>{if(q.data)setState(q.data)},[q.data]);const save=useMutation({mutationFn:()=>customerApi.updatePreferences(state)});const options:[[string,Parameters<typeof t>[0]]]=[["news","notificationNews"]] as any;options.push(["discounts","notificationDiscounts"],["report_status","notificationReports"],["suggestion_status","notificationSuggestions"],["expiring_points","notificationPoints"],["branch_updates","notificationBranches"]);return <Screen><PageTitle title={t("preferences")}/><State loading={q.isLoading} error={q.isError} retry={()=>q.refetch()}/><Card>{options.map(([key,label])=><View style={s.row} key={key}><Text style={s.label}>{t(label)}</Text><Switch value={state[key]??true} onValueChange={v=>setState(x=>({...x,[key]:v}))} trackColor={{true:colors.blue}}/></View>)}<Button disabled={save.isPending} title={t("save")} onPress={()=>save.mutate()}/></Card></Screen>};const s=StyleSheet.create({row:{minHeight:55,flexDirection:"row",alignItems:"center",justifyContent:"space-between",borderBottomWidth:1,borderColor:colors.border},label:{fontWeight:"700",color:colors.navy,flex:1}});
+import { useEffect, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { StyleSheet, Switch, Text, View } from "react-native";
+import { Button, Card, PageTitle, Screen, State } from "../components/ui";
+import { colors } from "../constants/theme";
+import { customerApi } from "../services/api";
+import { useI18n } from "../services/i18n";
+export default function Settings() {
+  const { t } = useI18n();
+  const q = useQuery({
+    queryKey: ["preferences"],
+    queryFn: customerApi.preferences,
+  });
+  const [state, setState] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    if (q.data) setState(q.data);
+  }, [q.data]);
+  const save = useMutation({
+    mutationFn: () => customerApi.updatePreferences(state),
+  });
+  const options: [[string, Parameters<typeof t>[0]]] = [
+    ["news", "notificationNews"],
+  ] as any;
+  options.push(
+    ["discounts", "notificationDiscounts"],
+    ["report_status", "notificationReports"],
+    ["suggestion_status", "notificationSuggestions"],
+    ["expiring_points", "notificationPoints"],
+    ["branch_updates", "notificationBranches"],
+  );
+  return (
+    <Screen>
+      <PageTitle title={t("preferences")} />
+      <State
+        loading={q.isLoading}
+        error={q.isError}
+        retry={() => q.refetch()}
+      />
+      <Card>
+        {options.map(([key, label]) => (
+          <View style={s.row} key={key}>
+            <Text style={s.label}>{t(label)}</Text>
+            <Switch
+              value={state[key] ?? true}
+              onValueChange={(v) => setState((x) => ({ ...x, [key]: v }))}
+              trackColor={{ true: colors.blue }}
+            />
+          </View>
+        ))}
+        <Button
+          disabled={save.isPending}
+          title={t("save")}
+          onPress={() => save.mutate()}
+        />
+      </Card>
+    </Screen>
+  );
+}
+const s = StyleSheet.create({
+  row: {
+    minHeight: 55,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+  },
+  label: { fontWeight: "700", color: colors.navy, flex: 1 },
+});

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.time import as_utc, utc_now
 from app.models.domain import CustomerReport, Incident, IncidentNote, IncidentSource, IncidentStatus, IncidentStatusHistory, Role, User
+from app.models.customer import Notification
 from app.models.retail import FileAsset, IncidentAttachment
 from app.schemas.api import ReportCreate
 from app.services.customer_context import market_id
@@ -57,7 +58,7 @@ def serialize_history(incident:Incident,customer:bool=False):
 def _media(db:Session,incident:Incident,customer_only=False):
     stmt=select(IncidentAttachment,FileAsset).join(FileAsset,FileAsset.id==IncidentAttachment.file_asset_id).where(IncidentAttachment.incident_id==incident.id)
     if customer_only:stmt=stmt.where(IncidentAttachment.customer_visible==True)
-    return [{"id":asset.id,"name":asset.original_name,"mime_type":asset.mime_type,"url":f"/uploads/{asset.storage_key}","customer_visible":link.customer_visible} for link,asset in db.execute(stmt).all()]
+    return [{"id":asset.id,"name":asset.original_name,"mime_type":asset.mime_type,"url":f"/api/v1/media/{asset.id}","customer_visible":link.customer_visible} for link,asset in db.execute(stmt).all()]
 
 
 def report_view(report:CustomerReport,db:Session|None=None):
@@ -114,6 +115,7 @@ def transition_incident(db:Session,incident:Incident,target:IncidentStatus,*,act
     for asset_id in attachment_ids or []:
         asset=db.get(FileAsset,asset_id)
         if asset and asset.organisation_id==incident.organisation_id:db.add(IncidentAttachment(organisation_id=incident.organisation_id,incident_id=incident.id,file_asset_id=asset.id,customer_visible=bool(customer_note)))
+    if incident.report:db.add(Notification(organisation_id=incident.organisation_id,user_id=incident.report.customer_id,kind="REPORT_STATUS",title="Müraciət statusu yeniləndi",body=f"{incident.report.tracking_number}: {customer_status(target)}",related_entity_type="REPORT",related_entity_id=incident.report.id))
     db.commit();db.refresh(incident);return incident
 
 

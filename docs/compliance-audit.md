@@ -2,7 +2,7 @@
 
 Audit date: 2026-07-31
 
-Repository scope: current tree containing Alembic revisions through `0010_admin_operations.py`.
+Repository scope: current tree containing Alembic revisions through `0011_customer_companion.py`.
 
 Evidence policy: `VERIFIED_WORKING` requires a current migration, automated test, build, direct HTTP/database observation, or a combination that proves the applicable slice. A file, route, rendered button, or historical result is not accepted by itself.
 
@@ -10,10 +10,10 @@ Evidence policy: `VERIFIED_WORKING` requires a current migration, automated test
 
 | Gate | Current result |
 |---|---|
-| Clean PostgreSQL migration | `0010 (head)` |
+| Clean PostgreSQL migration | `0011 (head)` |
 | Alembic drift | `No new upgrade operations detected.` |
 | Seed idempotency | First run seeded 2 organisations, 4 branches and 30 products; second run reported existing demo data |
-| Backend suite | `41 passed, 120 warnings in 17.17s` |
+| Backend suite | `44 passed, 129 warnings in 28.71s` |
 | Admin lint | ESLint exit 0, zero warnings |
 | Admin production build | Vite 6.4.3, 1,729 modules, built in 3.57s |
 | Admin JavaScript output | 423.95 kB, gzip 125.65 kB |
@@ -148,3 +148,23 @@ npm run build
 - No custom retail-hazard model is claimed because no production labelled dataset or weights are supplied.
 
 `npm audit --omit=dev` currently reports the upstream React Router RSC-mode advisory for the latest published `react-router-dom@7.18.2`. MARTIQ Admin is a client-only `BrowserRouter` SPA and does not enable React Server Components, server actions or React Router framework actions, so the vulnerable execution mode is not present. The dependency is kept on the latest published release and should be upgraded when the upstream package publishes a fixed version.
+
+## Customer mobile final re-audit — 2026-07-31
+
+Current PostgreSQL evidence used a newly-created `martiq_customer_final` database. Alembic migrated every revision from `0001` through `0011`; `alembic current` returned `0011 (head)` and `alembic check` returned `No new upgrade operations detected.` The first seed printed `Seeded 2 organisations, 4 branches and 30 products`; the second printed `Demo data already exists`.
+
+Customer verification added direct coverage for published organisation news, selected-branch news, rejection of another branch/organisation, draft/archive/expired filtering, detail-scope enforcement, seed idempotency and authenticated owner media. The complete backend suite returned `44 passed, 129 warnings in 28.71s`.
+
+Mobile commands returned:
+
+```text
+npm run typecheck       -> exit 0
+npm run lint            -> exit 0
+npm run check:i18n      -> Translation integrity passed: 325 AZ keys / 325 EN keys
+npx expo-doctor         -> 18/18 checks passed
+npx expo export --platform android -> Android bundle complete, 1,136 modules, 3.39 MB Hermes bundle
+```
+
+Real PostgreSQL runtime context switching returned `200` for both Nova Market and CityMart. Nova exposed 24 products, two current-market cards and eight branch-scoped visible news items; CityMart exposed six products, one current-market card and six visible news items. Database inventory was 13 Nova and six CityMart articles. `User.organisation_id` remained unchanged while `selected_organisation_id` persisted CityMart, proving that customer market context does not mutate account tenant ownership.
+
+Physical-device camera quality, device Settings redirection and real GPS/map behaviour remain device/environment verification items. Android export proves bundling, not physical camera execution.

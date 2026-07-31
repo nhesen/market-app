@@ -1,6 +1,6 @@
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, text
+from sqlalchemy import or_, select, text
 from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.security import create_refresh_token, create_token, current_user, hash_password, roles, verify_password
@@ -8,6 +8,7 @@ from jose import JWTError, jwt
 from pydantic import BaseModel,Field
 from app.db.session import get_db
 from app.models.domain import Branch, CustomerReport, Incident, IncidentSource, LoyaltyCard, News, Organisation, Product, Role, User
+from app.models.customer import Notification
 from app.schemas.api import IncidentOut, IncidentUpdate, LoginIn, ManualIncidentCreate, ReportCreate, ReportOut, TokenOut, UserOut
 from app.services.incidents import add_note,create_customer_report,create_incident,incident_view,report_view,transition_incident
 from app.services.customer_context import market_id
@@ -56,21 +57,22 @@ def change_password(data:ChangePasswordIn,user:User=Depends(current_user),db:Ses
 @router.get("/branches")
 def branches(user: User = Depends(current_user), db: Session = Depends(get_db)):
     rows=db.scalars(select(Branch).where(Branch.organisation_id==market_id(user))).all()
-    return [{"id":x.id,"name":x.name,"address":x.address,"hours":x.hours,"distance_km":x.distance_km,"is_open":x.is_open,"image_url":"/assets/retail-branch-v2.png"} for x in rows]
+    return [{"id":x.id,"name":x.name,"address":x.address,"hours":x.hours,"distance_km":x.distance_km,"is_open":x.is_open,"image_url":x.image_url,"latitude":x.latitude,"longitude":x.longitude} for x in rows]
 
 @router.get("/home")
 def home(branch_id:str|None=Query(None),user: User = Depends(roles(Role.CUSTOMER)), db: Session = Depends(get_db)):
     org = market_id(user)
-    news = db.scalars(select(News).where(News.organisation_id == org).order_by(News.published_at.desc())).all()
+    effective_branch=branch_id or user.preferred_branch_id
+    news = db.scalars(select(News).where(News.organisation_id == org,News.status=="PUBLISHED",or_(News.valid_until.is_(None),News.valid_until>=datetime.now()),or_(News.branch_id.is_(None),News.branch_id==effective_branch)).order_by(News.published_at.desc()).limit(5)).all()
     products = db.scalars(select(Product).where(Product.organisation_id == org)).all()
     branches_data = db.scalars(select(Branch).where(Branch.organisation_id == org)).all()
     if branch_id and not any(branch.id==branch_id for branch in branches_data):raise HTTPException(404,"Branch not found in your organisation")
     loyalty = db.scalar(select(LoyaltyCard).where(LoyaltyCard.user_id == user.id,LoyaltyCard.organisation_id==org))
     reports = db.scalars(select(CustomerReport).where(CustomerReport.customer_id == user.id,CustomerReport.organisation_id==org).order_by(CustomerReport.created_at.desc()).limit(4)).all()
-    effective_branch=branch_id or user.preferred_branch_id
     selected=next((branch for branch in branches_data if branch.id==effective_branch),branches_data[0] if branches_data else None)
     organisation=db.get(Organisation,org)
-    return {"user": user,"organisation":organisation,"selected_branch":selected,"news": news, "products": products, "discounts": [p for p in products if p.discount_price], "branches": branches_data, "loyalty": loyalty, "reports": [report_view(r,db) for r in reports]}
+    unread_notifications=len(db.scalars(select(Notification).where(Notification.user_id==user.id,Notification.organisation_id==org,Notification.is_read==False)).all())
+    return {"user": user,"organisation":organisation,"selected_branch":selected,"unread_notifications":unread_notifications,"news": news, "products": products, "discounts": [p for p in products if p.discount_price], "branches": branches_data, "loyalty": loyalty, "reports": [report_view(r,db) for r in reports]}
 
 @router.post("/reports/ai-review")
 def ai_review(data:ReportAIReviewIn,user:User=Depends(roles(Role.CUSTOMER))):

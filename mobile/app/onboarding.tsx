@@ -1,3 +1,105 @@
-import{Ionicons}from"@expo/vector-icons";import{router}from"expo-router";import{StyleSheet,Text,View}from"react-native";import{SafeAreaView}from"react-native-safe-area-context";import*as SecureStore from"expo-secure-store";import{Button}from"../components/ui";import{colors}from"../constants/theme";import{useI18n}from"../services/i18n";
-export default function Onboarding(){const{t}=useI18n();async function next(){await SecureStore.setItemAsync("onboarding_seen","1");router.replace("/login")}return <SafeAreaView style={s.page}><View style={s.art}><View style={s.orbit}/><View style={s.store}><Ionicons name="storefront" size={72} color="white"/></View><View style={[s.bubble,{left:24,top:80}]}><Ionicons name="pricetag" size={25} color={colors.blue}/></View><View style={[s.bubble,{right:24,bottom:70}]}><Ionicons name="card" size={25} color={colors.green}/></View></View><View style={s.copy}><Text style={s.brand}>{t("appName")}</Text><Text style={s.title}>{t("onboardingTitle")}</Text><Text style={s.body}>{t("onboardingBody")}</Text><View style={s.secure}><Ionicons name="shield-checkmark" size={20} color={colors.green}/><Text style={s.secureText}>{t("onboardingSecure")}</Text></View><Button title={t("getStarted")} icon="arrow-forward" onPress={next}/></View></SafeAreaView>}
-const s=StyleSheet.create({page:{flex:1,backgroundColor:colors.background,padding:24,justifyContent:"space-between"},art:{height:"48%",backgroundColor:colors.deepNavy,borderRadius:32,alignItems:"center",justifyContent:"center",overflow:"hidden"},orbit:{position:"absolute",width:310,height:310,borderRadius:155,borderWidth:1,borderColor:"#345079"},store:{width:150,height:150,borderRadius:45,backgroundColor:colors.blue,alignItems:"center",justifyContent:"center"},bubble:{position:"absolute",width:58,height:58,borderRadius:20,backgroundColor:"white",alignItems:"center",justifyContent:"center"},copy:{gap:14},brand:{fontSize:13,letterSpacing:2.5,fontWeight:"900",color:colors.blue},title:{fontSize:34,lineHeight:40,fontWeight:"900",color:colors.navy},body:{fontSize:16,lineHeight:24,color:colors.muted},secure:{flexDirection:"row",gap:9,alignItems:"center",backgroundColor:colors.softGreen,padding:13,borderRadius:14},secureText:{color:colors.green,fontWeight:"700",flex:1}});
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import { StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import * as SecureStore from "expo-secure-store";
+import { Button } from "../components/ui";
+import { colors } from "../constants/theme";
+import { useI18n } from "../services/i18n";
+export default function Onboarding() {
+  const { t } = useI18n();
+  async function next() {
+    await SecureStore.setItemAsync("onboarding_seen", "1");
+    router.replace("/login");
+  }
+  return (
+    <SafeAreaView style={s.page}>
+      <View style={s.art}>
+        <View style={s.orbit} />
+        <View style={s.store}>
+          <Ionicons name="storefront" size={72} color="white" />
+        </View>
+        <View style={[s.bubble, { left: 24, top: 80 }]}>
+          <Ionicons name="pricetag" size={25} color={colors.blue} />
+        </View>
+        <View style={[s.bubble, { right: 24, bottom: 70 }]}>
+          <Ionicons name="card" size={25} color={colors.green} />
+        </View>
+      </View>
+      <View style={s.copy}>
+        <Text style={s.brand}>{t("appName")}</Text>
+        <Text style={s.title}>{t("onboardingTitle")}</Text>
+        <Text style={s.body}>{t("onboardingBody")}</Text>
+        <View style={s.secure}>
+          <Ionicons name="shield-checkmark" size={20} color={colors.green} />
+          <Text style={s.secureText}>{t("onboardingSecure")}</Text>
+        </View>
+        <Button title={t("getStarted")} icon="arrow-forward" onPress={next} />
+      </View>
+    </SafeAreaView>
+  );
+}
+const s = StyleSheet.create({
+  page: {
+    flex: 1,
+    backgroundColor: colors.background,
+    padding: 24,
+    justifyContent: "space-between",
+  },
+  art: {
+    height: "48%",
+    backgroundColor: colors.deepNavy,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+  orbit: {
+    position: "absolute",
+    width: 310,
+    height: 310,
+    borderRadius: 155,
+    borderWidth: 1,
+    borderColor: "#345079",
+  },
+  store: {
+    width: 150,
+    height: 150,
+    borderRadius: 45,
+    backgroundColor: colors.blue,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  bubble: {
+    position: "absolute",
+    width: 58,
+    height: 58,
+    borderRadius: 20,
+    backgroundColor: "white",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  copy: { gap: 14 },
+  brand: {
+    fontSize: 13,
+    letterSpacing: 2.5,
+    fontWeight: "900",
+    color: colors.blue,
+  },
+  title: {
+    fontSize: 34,
+    lineHeight: 40,
+    fontWeight: "900",
+    color: colors.navy,
+  },
+  body: { fontSize: 16, lineHeight: 24, color: colors.muted },
+  secure: {
+    flexDirection: "row",
+    gap: 9,
+    alignItems: "center",
+    backgroundColor: colors.softGreen,
+    padding: 13,
+    borderRadius: 14,
+  },
+  secureText: { color: colors.green, fontWeight: "700", flex: 1 },
+});

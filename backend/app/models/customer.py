@@ -54,6 +54,8 @@ class Notification(Base):
     user_id:Mapped[str]=mapped_column(ForeignKey("users.id"),index=True)
     kind:Mapped[str]=mapped_column(String(40)); title:Mapped[str]=mapped_column(String(180)); body:Mapped[str]=mapped_column(Text)
     is_read:Mapped[bool]=mapped_column(Boolean,default=False)
+    related_entity_type:Mapped[str|None]=mapped_column(String(40),nullable=True)
+    related_entity_id:Mapped[str|None]=mapped_column(String(36),nullable=True)
     created_at:Mapped[datetime]=mapped_column(DateTime,default=utc_now)
 
 class AccountDeletionRequest(Base):

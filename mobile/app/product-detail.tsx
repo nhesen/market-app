@@ -1,3 +1,173 @@
-import{Ionicons}from"@expo/vector-icons";import{router,useLocalSearchParams}from"expo-router";import{useMutation,useQuery,useQueryClient}from"@tanstack/react-query";import{Pressable,StyleSheet,Text,View}from"react-native";import{Button,Card,PageTitle,RemoteImage,Screen,State}from"../components/ui";import{colors}from"../constants/theme";import{customerApi}from"../services/api";import{useI18n}from"../services/i18n";
-export default function ProductDetail(){const{id}=useLocalSearchParams<{id:string}>(),{t}=useI18n(),client=useQueryClient();const q=useQuery({queryKey:["product",id],queryFn:()=>customerApi.product(id!),enabled:Boolean(id)});const favs=useQuery({queryKey:["favourites"],queryFn:customerApi.favourites});const saved=Boolean(favs.data?.some(x=>x.id===id));const toggle=useMutation({mutationFn:()=>saved?customerApi.unfavourite(id!):customerApi.favourite(id!),onSuccess:()=>client.invalidateQueries({queryKey:["favourites"]})});const p=q.data;return <Screen><State loading={q.isLoading} error={q.isError} retry={()=>q.refetch()}/>{p?<><RemoteImage url={p.image_url} height={235}/><PageTitle title={p.name} subtitle={`${p.brand} · ${p.category}`} action={<Pressable style={s.heart} onPress={()=>toggle.mutate()}><Ionicons name={saved?"heart":"heart-outline"} size={28} color={colors.red}/></Pressable>}/><Card><View style={s.prices}>{p.discount_price?<Text style={s.old}>{p.price.toFixed(2)} {t("currency")}</Text>:null}<Text style={s.price}>{(p.discount_price??p.price).toFixed(2)} {t("currency")}</Text></View><Text style={s.meta}>{t("barcode")}: {p.barcode}</Text></Card><Card><Text style={s.title}>{t("branchPrice")}</Text>{p.branches?.map(b=><View style={s.row} key={b.branch_id}><View style={{flex:1}}><Text style={s.branch}>{b.branch_name}</Text><Text style={b.available?s.available:s.unavailable}>{b.available?t("inStock"):t("outOfStock")}</Text></View>{b.previous_price?<Text style={s.old}>{b.previous_price.toFixed(2)}</Text>:null}<Text style={s.branchPrice}>{b.price.toFixed(2)} {t("currency")}</Text></View>)}</Card><Button title={t("priceMismatch")} icon="alert-circle-outline" onPress={()=>router.push({pathname:"/report",params:{category:"PRICE",productId:p.id,title:t("priceMismatchTitle").replace("{product}",p.name),description:t("priceMismatchDescription").replace("{product}",p.name),barcode:p.barcode}})}/></>:null}</Screen>}
-const s=StyleSheet.create({heart:{width:46,height:46,borderRadius:15,backgroundColor:"white",alignItems:"center",justifyContent:"center",borderWidth:1,borderColor:colors.border},prices:{flexDirection:"row",alignItems:"center",gap:10},price:{fontSize:30,fontWeight:"900",color:colors.blue},old:{textDecorationLine:"line-through",color:colors.muted},meta:{color:colors.muted},title:{fontWeight:"900",fontSize:17,color:colors.navy},row:{flexDirection:"row",alignItems:"center",gap:8,paddingVertical:9,borderBottomWidth:1,borderColor:colors.border},branch:{fontWeight:"800"},available:{color:colors.green},unavailable:{color:colors.red},branchPrice:{fontWeight:"900",color:colors.blue}});
+import { Ionicons } from "@expo/vector-icons";
+import { router, useLocalSearchParams } from "expo-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  Button,
+  Card,
+  PageTitle,
+  RemoteImage,
+  Screen,
+  State,
+} from "../components/ui";
+import { colors } from "../constants/theme";
+import { customerApi } from "../services/api";
+import { useI18n } from "../services/i18n";
+export default function ProductDetail() {
+  const { id } = useLocalSearchParams<{ id: string }>(),
+    { t } = useI18n(),
+    client = useQueryClient();
+  const q = useQuery({
+      queryKey: ["product", id],
+      queryFn: () => customerApi.product(id!),
+      enabled: Boolean(id),
+    }),
+    favs = useQuery({
+      queryKey: ["favourites"],
+      queryFn: customerApi.favourites,
+    }),
+    saved = Boolean(favs.data?.some((x) => x.id === id));
+  const toggle = useMutation({
+    mutationFn: () =>
+      saved ? customerApi.unfavourite(id!) : customerApi.favourite(id!),
+    onSuccess: () => client.invalidateQueries({ queryKey: ["favourites"] }),
+  });
+  const p = q.data;
+  return (
+    <Screen>
+      <State
+        loading={q.isLoading}
+        error={q.isError}
+        retry={() => q.refetch()}
+      />
+      {p ? (
+        <>
+          <RemoteImage url={p.image_url} height={235} />
+          <PageTitle
+            title={p.name}
+            subtitle={[p.brand, p.package_size, p.category]
+              .filter(Boolean)
+              .join(" · ")}
+            action={
+              <Pressable
+                accessibilityLabel={saved ? t("unfavourite") : t("favourite")}
+                style={s.heart}
+                onPress={() => toggle.mutate()}
+              >
+                <Ionicons
+                  name={saved ? "heart" : "heart-outline"}
+                  size={28}
+                  color={colors.red}
+                />
+              </Pressable>
+            }
+          />
+          <Card>
+            <View style={s.prices}>
+              {p.discount_price ? (
+                <Text style={s.old}>
+                  {p.price.toFixed(2)} {t("currency")}
+                </Text>
+              ) : null}
+              <Text style={s.price}>
+                {(p.discount_price ?? p.price).toFixed(2)} {t("currency")}
+              </Text>
+            </View>
+            <Text style={s.meta}>
+              {t("barcode")}: {p.barcode}
+            </Text>
+            {p.package_size ? (
+              <Text style={s.meta}>
+                {t("packageSize")}: {p.package_size}
+              </Text>
+            ) : null}
+          </Card>
+          <Card>
+            <Text style={s.title}>{t("branchPrice")}</Text>
+            {p.branches?.map((b) => (
+              <View style={s.row} key={b.branch_id}>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.branch}>{b.branch_name}</Text>
+                  <Text style={b.available ? s.available : s.unavailable}>
+                    {b.available ? t("inStock") : t("outOfStock")}
+                  </Text>
+                </View>
+                {b.previous_price ? (
+                  <Text style={s.old}>{b.previous_price.toFixed(2)}</Text>
+                ) : null}
+                <Text style={s.branchPrice}>
+                  {b.price.toFixed(2)} {t("currency")}
+                </Text>
+              </View>
+            ))}
+          </Card>
+          <Button
+            title={t("checkExpiry")}
+            icon="calendar-outline"
+            onPress={() =>
+              router.push({
+                pathname: "/expiry",
+                params: { productId: p.id, name: p.name, barcode: p.barcode },
+              })
+            }
+          />
+          <Button
+            secondary
+            title={t("priceMismatch")}
+            icon="alert-circle-outline"
+            onPress={() =>
+              router.push({
+                pathname: "/report",
+                params: {
+                  category: "PRICE",
+                  productId: p.id,
+                  title: t("priceMismatchTitle").replace("{product}", p.name),
+                  description: t("priceMismatchDescription").replace(
+                    "{product}",
+                    p.name,
+                  ),
+                  barcode: p.barcode,
+                },
+              })
+            }
+          />
+          <Button
+            secondary
+            title={t("scanAnother")}
+            icon="barcode-outline"
+            onPress={() => router.push("/scanner")}
+          />
+        </>
+      ) : null}
+    </Screen>
+  );
+}
+const s = StyleSheet.create({
+  heart: {
+    width: 46,
+    height: 46,
+    borderRadius: 15,
+    backgroundColor: "white",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  prices: { flexDirection: "row", alignItems: "center", gap: 10 },
+  price: { fontSize: 30, fontWeight: "900", color: colors.blue },
+  old: { textDecorationLine: "line-through", color: colors.muted },
+  meta: { color: colors.muted },
+  title: { fontWeight: "900", fontSize: 17, color: colors.navy },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 9,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+  },
+  branch: { fontWeight: "800" },
+  available: { color: colors.green },
+  unavailable: { color: colors.red },
+  branchPrice: { fontWeight: "900", color: colors.blue },
+});

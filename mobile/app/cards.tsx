@@ -1,5 +1,233 @@
-import{useQuery}from"@tanstack/react-query";import{router}from"expo-router";import{ScrollView,StyleSheet,Text,View}from"react-native";import{Ionicons}from"@expo/vector-icons";import{Card,PageTitle,RemoteImage,Screen,State}from"../components/ui";import{customerApi}from"../services/api";import{useI18n}from"../services/i18n";import{colors}from"../constants/theme";
-export default function Cards(){const{t,language}=useI18n();const q=useQuery({queryKey:["cards"],queryFn:customerApi.cards});const offers=useQuery({queryKey:["offers"],queryFn:customerApi.offers});return <Screen refreshing={q.isRefetching} onRefresh={()=>Promise.all([q.refetch(),offers.refetch()]).then(()=>{})}><PageTitle title={t("cardsTitle")} subtitle={t("simulated")}/><View style={s.demo}><Ionicons name="flask-outline" size={18} color={colors.blue}/><Text style={s.demoText}>{t("simulated")}</Text></View><State loading={q.isLoading} error={q.isError} retry={()=>q.refetch()} empty={!q.data?.length?t("noCards"):undefined}/>{q.data?.map((card:any)=><Loyalty key={card.id} card={card}/>)}<Text style={s.section}>{t("rewardOffers")}</Text><State loading={offers.isLoading} error={offers.isError} retry={()=>offers.refetch()} empty={!offers.data?.length?t("noOffers"):undefined}/><ScrollView horizontal showsHorizontalScrollIndicator={false}>{offers.data?.map((offer:any)=><View key={offer.id} style={s.offer}><RemoteImage url={offer.image_url} height={120}/><Text numberOfLines={2} style={s.offerTitle}>{language==="en"?offer.title_en:offer.title_az}</Text><Text style={s.cost}>{offer.points_cost} {t("bonus")}</Text><Text style={s.offerLink} onPress={()=>router.push({pathname:"/offer-detail" as never,params:{id:offer.id}})}>{t("details")}</Text></View>)}</ScrollView></Screen>}
-function Loyalty({card}:{card:any}){const{t,language}=useI18n();const tx=useQuery({queryKey:["transactions",card.id],queryFn:()=>customerApi.transactions(card.id)}),number=card.card_number??card.id.replaceAll("-","").slice(0,16),masked=`•••• •••• •••• ${number.slice(-4)}`;return <><View style={s.loyalty}><View style={s.cardTop}><View><Text style={s.cardLabel}>{card.label}</Text><Text style={s.market}>{card.market_name}</Text></View><Ionicons name="sparkles" size={26} color="#9FC1FF"/></View><Text style={s.balance}>{card.balance} {t("bonus")}</Text><Text style={s.number}>{masked}</Text><Barcode value={number}/><View style={s.stats}><View><Text style={s.statValue}>+{card.monthly_earned}</Text><Text style={s.statLabel}>{t("monthlyEarned")}</Text></View><View><Text style={s.statValue}>{card.expiring}</Text><Text style={s.statLabel}>{t("expiringPoints")}</Text></View></View>{card.expiring_on?<Text style={s.expiry}>{new Date(card.expiring_on).toLocaleDateString(language==="az"?"az-AZ":"en-GB")}</Text>:null}</View><Card><Text style={s.title}>{t("cardHistory")}</Text><State loading={tx.isLoading} error={tx.isError} retry={()=>tx.refetch()}/>{tx.data?.map((x:any)=><View style={s.row} key={x.id}><View style={{flex:1}}><Text style={s.description}>{x.description}</Text><Text style={s.date}>{new Date(x.created_at).toLocaleDateString(language==="az"?"az-AZ":"en-GB")}</Text></View><Text style={[s.amount,{color:x.amount>=0?colors.green:colors.red}]}>{x.amount>0?"+":""}{x.amount}</Text></View>)}</Card></>}
-function Barcode({value}:{value:string}){const bits=value.split("").flatMap(x=>{const n=Number(x)||1;return[1,n%3+1,1,(n+1)%2+1]});return <View style={s.barcode}>{bits.map((width,index)=><View key={index} style={{width,height:index%3===0?39:34,backgroundColor:index%2===0?"white":"transparent"}}/>)}</View>}
-const s=StyleSheet.create({demo:{flexDirection:"row",gap:8,alignItems:"center",backgroundColor:colors.softBlue,padding:12,borderRadius:13},demoText:{color:colors.blue,fontWeight:"700",fontSize:12,flex:1},loyalty:{padding:22,borderRadius:23,backgroundColor:colors.deepNavy,gap:10},cardTop:{flexDirection:"row",justifyContent:"space-between"},cardLabel:{color:"white",fontWeight:"900",fontSize:17},market:{color:"#9FC1FF",fontWeight:"800",fontSize:11,letterSpacing:1.2},balance:{color:"white",fontSize:31,fontWeight:"900"},number:{color:"white",letterSpacing:2,fontWeight:"700"},barcode:{height:45,flexDirection:"row",alignItems:"flex-start",backgroundColor:"#101827",overflow:"hidden",paddingHorizontal:4},stats:{flexDirection:"row",justifyContent:"space-between",borderTopWidth:1,borderColor:"#31415F",paddingTop:10},statValue:{color:"white",fontWeight:"900",fontSize:17},statLabel:{color:"#AFC5E7",fontSize:11},expiry:{color:"#AFC5E7",fontSize:11},title:{fontWeight:"900",fontSize:18,color:colors.navy},row:{flexDirection:"row",justifyContent:"space-between",paddingVertical:8,borderBottomWidth:1,borderColor:colors.border},description:{fontWeight:"700",color:colors.navy},date:{fontSize:11,color:colors.muted,marginTop:3},amount:{fontWeight:"900",fontSize:17},section:{fontSize:20,fontWeight:"900",color:colors.navy},offer:{width:230,backgroundColor:"white",borderRadius:17,padding:11,borderWidth:1,borderColor:colors.border,marginRight:11,gap:6},offerTitle:{fontWeight:"900",fontSize:16,color:colors.navy},cost:{color:colors.green,fontWeight:"900"},offerLink:{color:colors.blue,fontWeight:"900"}});
+import { useQuery } from "@tanstack/react-query";
+import { router } from "expo-router";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { Card, PageTitle, RemoteImage, Screen, State } from "../components/ui";
+import { customerApi } from "../services/api";
+import { useI18n } from "../services/i18n";
+import { colors } from "../constants/theme";
+export default function Cards() {
+  const { t, language } = useI18n();
+  const q = useQuery({ queryKey: ["cards"], queryFn: customerApi.cards });
+  const offers = useQuery({
+    queryKey: ["offers"],
+    queryFn: customerApi.offers,
+  });
+  return (
+    <Screen
+      refreshing={q.isRefetching}
+      onRefresh={() =>
+        Promise.all([q.refetch(), offers.refetch()]).then(() => {})
+      }
+    >
+      <PageTitle title={t("cardsTitle")} subtitle={t("simulated")} />
+      <View style={s.demo}>
+        <Ionicons name="flask-outline" size={18} color={colors.blue} />
+        <Text style={s.demoText}>{t("simulated")}</Text>
+      </View>
+      <State
+        loading={q.isLoading}
+        error={q.isError}
+        retry={() => q.refetch()}
+        empty={!q.data?.length ? t("noCards") : undefined}
+      />
+      {q.data?.map((card: any) => (
+        <Loyalty key={card.id} card={card} />
+      ))}
+      <Text style={s.section}>{t("rewardOffers")}</Text>
+      <State
+        loading={offers.isLoading}
+        error={offers.isError}
+        retry={() => offers.refetch()}
+        empty={!offers.data?.length ? t("noOffers") : undefined}
+      />
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        {offers.data?.map((offer: any) => (
+          <View key={offer.id} style={s.offer}>
+            <RemoteImage url={offer.image_url} height={120} />
+            <Text numberOfLines={2} style={s.offerTitle}>
+              {language === "en" ? offer.title_en : offer.title_az}
+            </Text>
+            <Text style={s.cost}>
+              {offer.points_cost} {t("bonus")}
+            </Text>
+            <Text
+              style={s.offerLink}
+              onPress={() =>
+                router.push({
+                  pathname: "/offer-detail" as never,
+                  params: { id: offer.id },
+                })
+              }
+            >
+              {t("details")}
+            </Text>
+          </View>
+        ))}
+      </ScrollView>
+    </Screen>
+  );
+}
+function Loyalty({ card }: { card: any }) {
+  const { t, language } = useI18n();
+  const tx = useQuery({
+      queryKey: ["transactions", card.id],
+      queryFn: () => customerApi.transactions(card.id),
+    }),
+    number = card.card_number ?? card.id.replaceAll("-", "").slice(0, 16),
+    masked = `•••• •••• •••• ${number.slice(-4)}`;
+  return (
+    <>
+      <View style={s.loyalty}>
+        <View style={s.cardTop}>
+          <View>
+            <Text style={s.cardLabel}>{card.label}</Text>
+            <Text style={s.market}>{card.market_name}</Text>
+          </View>
+          <Ionicons name="sparkles" size={26} color="#9FC1FF" />
+        </View>
+        <Text style={s.balance}>
+          {card.balance} {t("bonus")}
+        </Text>
+        <Text style={s.number}>{masked}</Text>
+        <Barcode value={number} />
+        <View style={s.stats}>
+          <View>
+            <Text style={s.statValue}>+{card.monthly_earned}</Text>
+            <Text style={s.statLabel}>{t("monthlyEarned")}</Text>
+          </View>
+          <View>
+            <Text style={s.statValue}>{card.expiring}</Text>
+            <Text style={s.statLabel}>{t("expiringPoints")}</Text>
+          </View>
+        </View>
+        {card.expiring_on ? (
+          <Text style={s.expiry}>
+            {new Date(card.expiring_on).toLocaleDateString(
+              language === "az" ? "az-AZ" : "en-GB",
+            )}
+          </Text>
+        ) : null}
+      </View>
+      <Card>
+        <Text style={s.title}>{t("cardHistory")}</Text>
+        <State
+          loading={tx.isLoading}
+          error={tx.isError}
+          retry={() => tx.refetch()}
+        />
+        {tx.data?.map((x: any) => (
+          <View style={s.row} key={x.id}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.description}>{x.description}</Text>
+              <Text style={s.date}>
+                {new Date(x.created_at).toLocaleDateString(
+                  language === "az" ? "az-AZ" : "en-GB",
+                )}
+              </Text>
+            </View>
+            <Text
+              style={[
+                s.amount,
+                { color: x.amount >= 0 ? colors.green : colors.red },
+              ]}
+            >
+              {x.amount > 0 ? "+" : ""}
+              {x.amount}
+            </Text>
+          </View>
+        ))}
+      </Card>
+    </>
+  );
+}
+function Barcode({ value }: { value: string }) {
+  const bits = value.split("").flatMap((x) => {
+    const n = Number(x) || 1;
+    return [1, (n % 3) + 1, 1, ((n + 1) % 2) + 1];
+  });
+  return (
+    <View style={s.barcode}>
+      {bits.map((width, index) => (
+        <View
+          key={index}
+          style={{
+            width,
+            height: index % 3 === 0 ? 39 : 34,
+            backgroundColor: index % 2 === 0 ? "white" : "transparent",
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+const s = StyleSheet.create({
+  demo: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+    backgroundColor: colors.softBlue,
+    padding: 12,
+    borderRadius: 13,
+  },
+  demoText: { color: colors.blue, fontWeight: "700", fontSize: 12, flex: 1 },
+  loyalty: {
+    padding: 22,
+    borderRadius: 23,
+    backgroundColor: colors.deepNavy,
+    gap: 10,
+  },
+  cardTop: { flexDirection: "row", justifyContent: "space-between" },
+  cardLabel: { color: "white", fontWeight: "900", fontSize: 17 },
+  market: {
+    color: "#9FC1FF",
+    fontWeight: "800",
+    fontSize: 11,
+    letterSpacing: 1.2,
+  },
+  balance: { color: "white", fontSize: 31, fontWeight: "900" },
+  number: { color: "white", letterSpacing: 2, fontWeight: "700" },
+  barcode: {
+    height: 45,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#101827",
+    overflow: "hidden",
+    paddingHorizontal: 4,
+  },
+  stats: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    borderTopWidth: 1,
+    borderColor: "#31415F",
+    paddingTop: 10,
+  },
+  statValue: { color: "white", fontWeight: "900", fontSize: 17 },
+  statLabel: { color: "#AFC5E7", fontSize: 11 },
+  expiry: { color: "#AFC5E7", fontSize: 11 },
+  title: { fontWeight: "900", fontSize: 18, color: colors.navy },
+  row: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderColor: colors.border,
+  },
+  description: { fontWeight: "700", color: colors.navy },
+  date: { fontSize: 11, color: colors.muted, marginTop: 3 },
+  amount: { fontWeight: "900", fontSize: 17 },
+  section: { fontSize: 20, fontWeight: "900", color: colors.navy },
+  offer: {
+    width: 230,
+    backgroundColor: "white",
+    borderRadius: 17,
+    padding: 11,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginRight: 11,
+    gap: 6,
+  },
+  offerTitle: { fontWeight: "900", fontSize: 16, color: colors.navy },
+  cost: { color: colors.green, fontWeight: "900" },
+  offerLink: { color: colors.blue, fontWeight: "900" },
+});

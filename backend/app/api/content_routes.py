@@ -1,20 +1,27 @@
-from datetime import date
+from datetime import date,datetime
+from pathlib import Path
 from fastapi import APIRouter,Depends,File,HTTPException,UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel,Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from app.core.security import current_user,roles
+from app.core.config import settings
 from app.db.session import get_db
-from app.models.domain import Branch,News,Product,Role,User
-from app.models.retail import AuditLog,BranchService,DiscountCampaign,DiscountCampaignProduct,FileAsset,LoyaltyRewardOffer,LoyaltyTransaction,ProductCategory,ProductPrice
+from app.models.customer import ManagementSuggestion,SuggestionAttachment
+from app.models.domain import Branch,Incident,News,Product,Role,User
+from app.models.retail import AuditLog,BranchService,DiscountCampaign,DiscountCampaignProduct,FileAsset,IncidentAttachment,LoyaltyRewardOffer,LoyaltyTransaction,ProductCategory,ProductPrice
 from app.services.storage import storage
 from app.services.customer_context import market_id
 
 router=APIRouter(prefix="/api/v1")
 ADMINS=(Role.BRANCH_ADMIN,Role.HEAD_OFFICE_ADMIN,Role.PLATFORM_ADMIN)
 CONTENT_ADMINS=(Role.HEAD_OFFICE_ADMIN,Role.PLATFORM_ADMIN)
-class ProductIn(BaseModel): name:str=Field(min_length=2,max_length=180);brand:str=Field(min_length=2,max_length=120);barcode:str=Field(min_length=6,max_length=32);category:str;price:float=Field(gt=0);discount_price:float|None=None;image_url:str="/assets/retail-products-v2.png"
-class NewsIn(BaseModel): title_az:str;title_en:str;summary_az:str;summary_en:str;branch_id:str|None=None;image_url:str="/assets/retail-news-v2.png"
+class ProductIn(BaseModel): name:str=Field(min_length=2,max_length=180);brand:str=Field(min_length=2,max_length=120);package_size:str|None=Field(default=None,max_length=80);barcode:str=Field(min_length=6,max_length=32);category:str;price:float=Field(gt=0);discount_price:float|None=None;image_url:str="/assets/retail-products-v2.png"
+class NewsIn(BaseModel):
+    title_az:str;title_en:str;summary_az:str;summary_en:str;body_az:str|None=None;body_en:str|None=None
+    content_type:str=Field(default="NEWS",pattern="^(NEWS|ANNOUNCEMENT|BRANCH_UPDATE|MAINTENANCE|NEW_SERVICE|SUSTAINABILITY|CAMPAIGN|HOLIDAY_HOURS)$")
+    status:str=Field(default="PUBLISHED",pattern="^(DRAFT|PUBLISHED|ARCHIVED)$");branch_id:str|None=None;valid_until:datetime|None=None;image_url:str="/assets/retail-news-v2.png"
 class PriceIn(BaseModel): branch_id:str;product_id:str;price:float=Field(gt=0);previous_price:float|None=None;available:bool=True
 class CampaignIn(BaseModel): title:str;description:str;starts_on:date;ends_on:date;published:bool=True
 class CampaignProductIn(BaseModel): product_id:str;branch_id:str;discount_price:float=Field(gt=0)
@@ -26,7 +33,22 @@ def log(db:Session,user:User,action:str,kind:str,entity_id:str):db.add(AuditLog(
 
 @router.post("/uploads",status_code=201)
 async def upload(file:UploadFile=File(...),user:User=Depends(current_user),db:Session=Depends(get_db)):
-    key,size,mime=await storage.save(file);item=FileAsset(organisation_id=market_id(user),owner_id=user.id,storage_key=key,original_name=file.filename or "upload",mime_type=mime,size=size);db.add(item);db.commit();db.refresh(item);return {"id":item.id,"name":item.original_name,"mime_type":mime,"size":size,"url":f"/uploads/{key}"}
+    key,size,mime=await storage.save(file);item=FileAsset(organisation_id=market_id(user),owner_id=user.id,storage_key=key,original_name=file.filename or "upload",mime_type=mime,size=size);db.add(item);db.commit();db.refresh(item);return {"id":item.id,"name":item.original_name,"mime_type":mime,"size":size,"url":f"/api/v1/media/{item.id}"}
+
+@router.get("/media/{asset_id}")
+def protected_media(asset_id:str,user:User=Depends(current_user),db:Session=Depends(get_db)):
+    asset=db.get(FileAsset,asset_id)
+    if not asset:raise HTTPException(404,"Media not found")
+    allowed=user.role==Role.PLATFORM_ADMIN or asset.owner_id==user.id
+    if not allowed and user.role==Role.HEAD_OFFICE_ADMIN:allowed=asset.organisation_id==user.organisation_id
+    if not allowed and user.role==Role.BRANCH_ADMIN:
+        incident_match=db.scalar(select(IncidentAttachment.id).join(Incident,Incident.id==IncidentAttachment.incident_id).where(IncidentAttachment.file_asset_id==asset.id,Incident.branch_id==user.branch_id))
+        suggestion_match=db.scalar(select(SuggestionAttachment.id).join(ManagementSuggestion,ManagementSuggestion.id==SuggestionAttachment.suggestion_id).where(SuggestionAttachment.file_asset_id==asset.id,ManagementSuggestion.branch_id==user.branch_id))
+        allowed=bool(incident_match or suggestion_match)
+    if not allowed:raise HTTPException(404,"Media not found")
+    root=Path(settings.upload_dir).resolve();path=(root/asset.storage_key).resolve()
+    if root not in path.parents or not path.is_file():raise HTTPException(404,"Media not found")
+    return FileResponse(path,media_type=asset.mime_type,filename=asset.original_name)
 
 @router.get("/loyalty/cards")
 def cards(user:User=Depends(roles(Role.CUSTOMER)),db:Session=Depends(get_db)):
@@ -93,12 +115,14 @@ def admin_news(user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_
 @router.post("/admin/news",status_code=201)
 def create_news(data:NewsIn,user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
     if data.branch_id and not db.scalar(select(Branch).where(Branch.id==data.branch_id,Branch.organisation_id==user.organisation_id)):raise HTTPException(404,"Branch not found in your organisation")
-    item=News(organisation_id=user.organisation_id,**data.model_dump());db.add(item);db.flush();log(db,user,"CREATE","News",item.id);db.commit();db.refresh(item);return item
+    payload=data.model_dump();payload["body_az"]=payload["body_az"] or data.summary_az;payload["body_en"]=payload["body_en"] or data.summary_en
+    item=News(organisation_id=user.organisation_id,**payload);db.add(item);db.flush();log(db,user,"CREATE","News",item.id);db.commit();db.refresh(item);return item
 @router.patch("/admin/news/{item_id}")
 def update_news(item_id:str,data:NewsIn,user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):
     item=db.get(News,item_id)
     if not item or (user.role!=Role.PLATFORM_ADMIN and item.organisation_id!=user.organisation_id):raise HTTPException(404,"News not found")
-    for k,v in data.model_dump().items():setattr(item,k,v)
+    payload=data.model_dump();payload["body_az"]=payload["body_az"] or data.summary_az;payload["body_en"]=payload["body_en"] or data.summary_en
+    for k,v in payload.items():setattr(item,k,v)
     log(db,user,"UPDATE","News",item.id);db.commit();db.refresh(item);return item
 @router.delete("/admin/news/{item_id}",status_code=204)
 def delete_news(item_id:str,user:User=Depends(roles(*CONTENT_ADMINS)),db:Session=Depends(get_db)):

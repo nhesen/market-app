@@ -1,12 +1,177 @@
-import {Ionicons} from "@expo/vector-icons";
-import {useLocalSearchParams} from "expo-router";
-import {useQuery} from "@tanstack/react-query";
-import {StyleSheet,Text,View} from "react-native";
-import {Card,PageTitle,RemoteImage,Screen,State,Status} from "../components/ui";
-import {api} from "../services/api";
-import {useI18n} from "../services/i18n";
-import {colors} from "../constants/theme";
+import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
+import { StyleSheet, Text, View } from "react-native";
+import {
+  Card,
+  PageTitle,
+  RemoteImage,
+  Screen,
+  State,
+  Status,
+} from "../components/ui";
+import { api } from "../services/api";
+import { useI18n } from "../services/i18n";
+import { colors } from "../constants/theme";
 
-export default function ReportDetail(){const{id}=useLocalSearchParams<{id:string}>(),{t,language}=useI18n(),q=useQuery({queryKey:["report",id],queryFn:()=>api.report(id!),enabled:Boolean(id),refetchInterval:10000}),r=q.data,locale=language==="az"?"az-AZ":"en-GB";return <Screen refreshing={q.isRefetching} onRefresh={()=>q.refetch()}><State loading={q.isLoading} error={q.isError} retry={()=>q.refetch()}/>{r?<><Status value={r.customer_status??r.status}/><PageTitle title={r.title} subtitle={`${t("trackingNumber")}: ${r.tracking_number}`}/><Card><Text style={s.body}>{r.description}</Text>{r.subcategory?<Text style={s.category}>{t(`sub_${r.subcategory}` as any)}</Text>:null}{r.barcode?<Text style={s.meta}>{t("barcode")}: {r.barcode}</Text>:null}<Text style={s.meta}>{new Date(r.created_at).toLocaleString(locale)}</Text></Card>{r.media?.length?<><Text style={s.section}>{t("mediaPreview")}</Text>{r.media.map((m:any)=>m.mime_type?.startsWith("video/")?<Card key={m.id}><View style={s.video}><Ionicons name="videocam" size={44} color={colors.blue}/><Text style={s.videoTitle}>{t("shortVideo")}</Text><Text style={s.meta}>{m.name}</Text></View></Card>:<RemoteImage key={m.id} url={m.url} height={220}/>)}</>:null}{r.rejection_reason?<Reason title={t("rejectionReason")} value={r.rejection_reason} color={colors.red}/>:null}{r.resolution_note?<Reason title={t("resolutionNote")} value={r.resolution_note} color={colors.green}/>:null}{r.reopening_reason?<Reason title={t("reopeningReason" as any)} value={r.reopening_reason} color={colors.blue}/>:null}{r.notes?.length?<><Text style={s.section}>{t("notes" as any)}</Text>{r.notes.map((item:any,index:number)=><Card key={`${item.created_at}-${index}`}><Text>{item.note}</Text><Text style={s.meta}>{new Date(item.created_at).toLocaleString(locale)}</Text></Card>)}</>:null}<Text style={s.section}>{t("timeline")}</Text><View style={s.timeline}>{r.history.map((h:any,index:number)=><View style={s.event} key={`${h.created_at}-${index}`}><View style={s.rail}><View style={s.dot}/>{index<r.history.length-1?<View style={s.line}/>:null}</View><View style={s.eventBody}><Status value={h.status}/><Text style={s.note}>{h.note}</Text><Text style={s.meta}>{new Date(h.created_at).toLocaleString(locale)}</Text></View></View>)}</View></>:null}</Screen>}
-function Reason({title,value,color}:{title:string;value:string;color:string}){return <Card><Text style={[s.reason,{color}]}>{title}</Text><Text>{value}</Text></Card>}
-const s=StyleSheet.create({body:{fontSize:15,lineHeight:23,color:colors.navy},meta:{color:colors.muted,fontSize:12},category:{color:colors.blue,fontWeight:"800"},section:{fontSize:19,fontWeight:"900",color:colors.navy},reason:{fontWeight:"900"},video:{height:160,borderRadius:14,backgroundColor:colors.softBlue,alignItems:"center",justifyContent:"center",gap:7},videoTitle:{color:colors.blue,fontWeight:"900"},timeline:{gap:0},event:{flexDirection:"row",gap:12,minHeight:90},rail:{width:20,alignItems:"center"},dot:{width:14,height:14,borderRadius:7,backgroundColor:colors.blue,marginTop:6},line:{width:2,flex:1,backgroundColor:colors.border},eventBody:{flex:1,gap:7,paddingBottom:18},note:{lineHeight:20,color:colors.navy}});
+export default function ReportDetail() {
+  const { id } = useLocalSearchParams<{ id: string }>(),
+    { t, language } = useI18n(),
+    q = useQuery({
+      queryKey: ["report", id],
+      queryFn: () => api.report(id!),
+      enabled: Boolean(id),
+      refetchInterval: 10000,
+    }),
+    r = q.data,
+    locale = language === "az" ? "az-AZ" : "en-GB";
+  return (
+    <Screen refreshing={q.isRefetching} onRefresh={() => q.refetch()}>
+      <State
+        loading={q.isLoading}
+        error={q.isError}
+        retry={() => q.refetch()}
+      />
+      {r ? (
+        <>
+          <Status value={r.customer_status ?? r.status} />
+          <PageTitle
+            title={r.title}
+            subtitle={`${t("trackingNumber")}: ${r.tracking_number}`}
+          />
+          <Card>
+            <Text style={s.body}>{r.description}</Text>
+            {r.subcategory ? (
+              <Text style={s.category}>{t(`sub_${r.subcategory}` as any)}</Text>
+            ) : null}
+            {r.barcode ? (
+              <Text style={s.meta}>
+                {t("barcode")}: {r.barcode}
+              </Text>
+            ) : null}
+            <Text style={s.meta}>
+              {new Date(r.created_at).toLocaleString(locale)}
+            </Text>
+          </Card>
+          {r.media?.length ? (
+            <>
+              <Text style={s.section}>{t("mediaPreview")}</Text>
+              {r.media.map((m: any) =>
+                m.mime_type?.startsWith("video/") ? (
+                  <Card key={m.id}>
+                    <View style={s.video}>
+                      <Ionicons name="videocam" size={44} color={colors.blue} />
+                      <Text style={s.videoTitle}>{t("shortVideo")}</Text>
+                      <Text style={s.meta}>{m.name}</Text>
+                    </View>
+                  </Card>
+                ) : (
+                  <RemoteImage key={m.id} url={m.url} height={220} />
+                ),
+              )}
+            </>
+          ) : null}
+          {r.rejection_reason ? (
+            <Reason
+              title={t("rejectionReason")}
+              value={r.rejection_reason}
+              color={colors.red}
+            />
+          ) : null}
+          {r.resolution_note ? (
+            <Reason
+              title={t("resolutionNote")}
+              value={r.resolution_note}
+              color={colors.green}
+            />
+          ) : null}
+          {r.reopening_reason ? (
+            <Reason
+              title={t("reopeningReason" as any)}
+              value={r.reopening_reason}
+              color={colors.blue}
+            />
+          ) : null}
+          {r.notes?.length ? (
+            <>
+              <Text style={s.section}>{t("notes" as any)}</Text>
+              {r.notes.map((item: any, index: number) => (
+                <Card key={`${item.created_at}-${index}`}>
+                  <Text>{item.note}</Text>
+                  <Text style={s.meta}>
+                    {new Date(item.created_at).toLocaleString(locale)}
+                  </Text>
+                </Card>
+              ))}
+            </>
+          ) : null}
+          <Text style={s.section}>{t("timeline")}</Text>
+          <View style={s.timeline}>
+            {r.history.map((h: any, index: number) => (
+              <View style={s.event} key={`${h.created_at}-${index}`}>
+                <View style={s.rail}>
+                  <View style={s.dot} />
+                  {index < r.history.length - 1 ? (
+                    <View style={s.line} />
+                  ) : null}
+                </View>
+                <View style={s.eventBody}>
+                  <Status value={h.status} />
+                  <Text style={s.note}>{h.note}</Text>
+                  <Text style={s.meta}>
+                    {new Date(h.created_at).toLocaleString(locale)}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+        </>
+      ) : null}
+    </Screen>
+  );
+}
+function Reason({
+  title,
+  value,
+  color,
+}: {
+  title: string;
+  value: string;
+  color: string;
+}) {
+  return (
+    <Card>
+      <Text style={[s.reason, { color }]}>{title}</Text>
+      <Text>{value}</Text>
+    </Card>
+  );
+}
+const s = StyleSheet.create({
+  body: { fontSize: 15, lineHeight: 23, color: colors.navy },
+  meta: { color: colors.muted, fontSize: 12 },
+  category: { color: colors.blue, fontWeight: "800" },
+  section: { fontSize: 19, fontWeight: "900", color: colors.navy },
+  reason: { fontWeight: "900" },
+  video: {
+    height: 160,
+    borderRadius: 14,
+    backgroundColor: colors.softBlue,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+  videoTitle: { color: colors.blue, fontWeight: "900" },
+  timeline: { gap: 0 },
+  event: { flexDirection: "row", gap: 12, minHeight: 90 },
+  rail: { width: 20, alignItems: "center" },
+  dot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: colors.blue,
+    marginTop: 6,
+  },
+  line: { width: 2, flex: 1, backgroundColor: colors.border },
+  eventBody: { flex: 1, gap: 7, paddingBottom: 18 },
+  note: { lineHeight: 20, color: colors.navy },
+});

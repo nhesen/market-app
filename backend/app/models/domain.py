@@ -59,6 +59,9 @@ class Branch(Base):
     hours: Mapped[str] = mapped_column(String(80), default="08:00–23:00")
     distance_km: Mapped[float] = mapped_column(Float, default=1.2)
     is_open: Mapped[bool] = mapped_column(Boolean, default=True)
+    image_url: Mapped[str] = mapped_column(String(255), default="/assets/retail-branch-v2.png")
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
 class User(Base):
@@ -98,8 +101,15 @@ class News(Base):
     title_en: Mapped[str] = mapped_column(String(180))
     summary_az: Mapped[str] = mapped_column(Text)
     summary_en: Mapped[str] = mapped_column(Text)
+    body_az: Mapped[str] = mapped_column(Text, default="")
+    body_en: Mapped[str] = mapped_column(Text, default="")
+    content_type: Mapped[str] = mapped_column(String(40), default="NEWS", index=True)
+    status: Mapped[str] = mapped_column(String(20), default="PUBLISHED", index=True)
+    valid_until: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     image_url: Mapped[str] = mapped_column(String(255), default="/assets/retail-news-v2.png")
     published_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
 
 class Product(Base):
@@ -109,6 +119,7 @@ class Product(Base):
     organisation_id: Mapped[str] = mapped_column(ForeignKey("organisations.id"), index=True)
     name: Mapped[str] = mapped_column(String(180))
     brand: Mapped[str] = mapped_column(String(120))
+    package_size: Mapped[str | None] = mapped_column(String(80), nullable=True)
     barcode: Mapped[str] = mapped_column(String(32))
     category: Mapped[str] = mapped_column(String(80))
     price: Mapped[float] = mapped_column(Float)

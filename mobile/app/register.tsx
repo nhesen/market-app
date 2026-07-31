@@ -1,3 +1,129 @@
-import{useState}from"react";import{router}from"expo-router";import{useQuery}from"@tanstack/react-query";import{StyleSheet,Switch,Text,TextInput,View}from"react-native";import{api,register}from"../services/api";import{Button,Card,Chip,PageTitle,Screen,State}from"../components/ui";import{colors}from"../constants/theme";import{useI18n}from"../services/i18n";
-export default function Register(){const{t}=useI18n();const[form,setForm]=useState({first_name:"",last_name:"",phone:"",email:"",password:"",password_confirmation:"",organisation_id:"",privacy_accepted:false}),[error,setError]=useState(""),[busy,setBusy]=useState(false);const organisations=useQuery({queryKey:["organisations"],queryFn:api.organisations});function field(key:keyof typeof form,value:string|boolean){setForm(x=>({...x,[key]:value}))}async function submit(){setBusy(true);setError("");try{await register({...form,organisation_id:form.organisation_id||organisations.data?.[0]?.id});router.replace("/")}catch(e){setError(e instanceof Error?e.message:t("loadError"))}finally{setBusy(false)}}const fields:Array<[keyof typeof form,string,boolean]>= [["first_name",t("firstName"),false],["last_name",t("lastName"),false],["phone",t("phone"),false],["email",t("email"),false],["password",t("password"),true],["password_confirmation",t("confirmPassword"),true]];return <Screen><PageTitle title={t("registerTitle")} subtitle={t("registerSubtitle")}/><Card>{fields.map(([key,label,secure])=><View key={key}><Text style={s.label}>{label}</Text><TextInput style={s.input} value={String(form[key])} onChangeText={v=>field(key,v)} secureTextEntry={secure} autoCapitalize={key==="email"?"none":"sentences"} keyboardType={key==="email"?"email-address":key==="phone"?"phone-pad":"default"}/></View>)}<Text style={s.label}>{t("market")}</Text><State loading={organisations.isLoading} error={organisations.isError} retry={()=>organisations.refetch()}/><View style={s.wrap}>{organisations.data?.map((x:any)=><Chip key={x.id} label={x.name} active={(form.organisation_id||organisations.data?.[0]?.id)===x.id} onPress={()=>field("organisation_id",x.id)}/>)}</View><View style={s.switch}><Text style={{flex:1}}>{t("acceptPrivacy")}</Text><Switch value={form.privacy_accepted} onValueChange={v=>field("privacy_accepted",v)} trackColor={{true:colors.blue}}/></View>{error?<Text style={s.error}>{error}</Text>:null}<Button disabled={busy||!form.privacy_accepted||form.password.length<8||form.password!==form.password_confirmation} title={t("completeRegistration")} onPress={submit}/></Card></Screen>}
-const s=StyleSheet.create({label:{fontWeight:"800",color:colors.navy,marginBottom:6},input:{borderWidth:1,borderColor:colors.border,borderRadius:13,padding:13,marginBottom:10},wrap:{flexDirection:"row",flexWrap:"wrap",gap:8},switch:{flexDirection:"row",alignItems:"center",gap:10},error:{color:colors.red}});
+import { useState } from "react";
+import { router } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
+import { StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { api, register } from "../services/api";
+import { Button, Card, Chip, PageTitle, Screen, State } from "../components/ui";
+import { colors } from "../constants/theme";
+import { useI18n } from "../services/i18n";
+export default function Register() {
+  const { t } = useI18n();
+  const [form, setForm] = useState({
+      first_name: "",
+      last_name: "",
+      phone: "",
+      email: "",
+      password: "",
+      password_confirmation: "",
+      organisation_id: "",
+      privacy_accepted: false,
+    }),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false);
+  const organisations = useQuery({
+    queryKey: ["organisations"],
+    queryFn: api.organisations,
+  });
+  function field(key: keyof typeof form, value: string | boolean) {
+    setForm((x) => ({ ...x, [key]: value }));
+  }
+  async function submit() {
+    setBusy(true);
+    setError("");
+    try {
+      await register({
+        ...form,
+        organisation_id: form.organisation_id || organisations.data?.[0]?.id,
+      });
+      router.replace("/");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("loadError"));
+    } finally {
+      setBusy(false);
+    }
+  }
+  const fields: Array<[keyof typeof form, string, boolean]> = [
+    ["first_name", t("firstName"), false],
+    ["last_name", t("lastName"), false],
+    ["phone", t("phone"), false],
+    ["email", t("email"), false],
+    ["password", t("password"), true],
+    ["password_confirmation", t("confirmPassword"), true],
+  ];
+  return (
+    <Screen>
+      <PageTitle title={t("registerTitle")} subtitle={t("registerSubtitle")} />
+      <Card>
+        {fields.map(([key, label, secure]) => (
+          <View key={key}>
+            <Text style={s.label}>{label}</Text>
+            <TextInput
+              style={s.input}
+              value={String(form[key])}
+              onChangeText={(v) => field(key, v)}
+              secureTextEntry={secure}
+              autoCapitalize={key === "email" ? "none" : "sentences"}
+              keyboardType={
+                key === "email"
+                  ? "email-address"
+                  : key === "phone"
+                    ? "phone-pad"
+                    : "default"
+              }
+            />
+          </View>
+        ))}
+        <Text style={s.label}>{t("market")}</Text>
+        <State
+          loading={organisations.isLoading}
+          error={organisations.isError}
+          retry={() => organisations.refetch()}
+        />
+        <View style={s.wrap}>
+          {organisations.data?.map((x: any) => (
+            <Chip
+              key={x.id}
+              label={x.name}
+              active={
+                (form.organisation_id || organisations.data?.[0]?.id) === x.id
+              }
+              onPress={() => field("organisation_id", x.id)}
+            />
+          ))}
+        </View>
+        <View style={s.switch}>
+          <Text style={{ flex: 1 }}>{t("acceptPrivacy")}</Text>
+          <Switch
+            value={form.privacy_accepted}
+            onValueChange={(v) => field("privacy_accepted", v)}
+            trackColor={{ true: colors.blue }}
+          />
+        </View>
+        {error ? <Text style={s.error}>{error}</Text> : null}
+        <Button
+          disabled={
+            busy ||
+            !form.privacy_accepted ||
+            form.password.length < 8 ||
+            form.password !== form.password_confirmation
+          }
+          title={t("completeRegistration")}
+          onPress={submit}
+        />
+      </Card>
+    </Screen>
+  );
+}
+const s = StyleSheet.create({
+  label: { fontWeight: "800", color: colors.navy, marginBottom: 6 },
+  input: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 13,
+    padding: 13,
+    marginBottom: 10,
+  },
+  wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  switch: { flexDirection: "row", alignItems: "center", gap: 10 },
+  error: { color: colors.red },
+});

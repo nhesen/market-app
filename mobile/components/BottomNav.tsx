@@ -1,4 +1,107 @@
-import{Ionicons}from"@expo/vector-icons";import{router,usePathname}from"expo-router";import{Pressable,StyleSheet,Text,View}from"react-native";import{useSafeAreaInsets}from"react-native-safe-area-context";import{colors}from"../constants/theme";import{useI18n}from"../services/i18n";
-export function BottomNav(){const{t}=useI18n(),inset=useSafeAreaInsets(),pathname=usePathname();const items=[{label:t("navHome"),icon:"home-outline",path:"/"},{label:t("navPrices"),icon:"pricetags-outline",path:"/products"},{label:t("navCards"),icon:"card-outline",path:"/cards"},{label:t("navProfile"),icon:"person-outline",path:"/profile"}];return <View style={[s.shell,{height:72+inset.bottom,paddingBottom:Math.max(inset.bottom,8)}]}><Nav item={items[0]} active={pathname==="/"}/><Nav item={items[1]} active={pathname.startsWith("/products")}/><View style={s.centerSlot}><Pressable accessibilityRole="button" accessibilityLabel={t("reportProblem")} onPress={()=>router.push("/report-options" as never)} style={s.centerButton}><Ionicons name="add" size={32} color="white"/></Pressable><Text style={s.centerLabel}>{t("navReport")}</Text></View><Nav item={items[2]} active={pathname.startsWith("/cards")}/><Nav item={items[3]} active={pathname.startsWith("/profile")}/></View>}
-function Nav({item,active}:{item:{label:string;icon:string;path:string};active:boolean}){return <Pressable style={s.item} onPress={()=>router.push(item.path as never)}><Ionicons name={(active?item.icon.replace("-outline",""):item.icon)as any} size={22} color={active?colors.blue:colors.muted}/><Text numberOfLines={1} style={[s.label,active&&s.active]}>{item.label}</Text></Pressable>}
-const s=StyleSheet.create({shell:{position:"absolute",left:0,right:0,bottom:0,backgroundColor:"white",borderTopWidth:1,borderTopColor:colors.border,flexDirection:"row",alignItems:"flex-start",paddingTop:9,paddingHorizontal:4,elevation:18,shadowColor:colors.deepNavy,shadowOffset:{width:0,height:-8},shadowOpacity:.08,shadowRadius:18},item:{flex:1,alignItems:"center",justifyContent:"center",gap:3,minHeight:52},label:{fontSize:10.5,fontWeight:"700",color:colors.muted},active:{color:colors.blue,fontWeight:"900"},centerSlot:{flex:1,alignItems:"center",top:-31},centerButton:{height:64,width:64,borderRadius:32,alignItems:"center",justifyContent:"center",backgroundColor:colors.teal,borderWidth:5,borderColor:"white",shadowColor:colors.teal,shadowOffset:{width:0,height:8},shadowOpacity:.28,shadowRadius:12,elevation:8},centerLabel:{fontSize:10.5,fontWeight:"900",color:colors.teal}});
+import { Ionicons } from "@expo/vector-icons";
+import { router, usePathname } from "expo-router";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { colors } from "../constants/theme";
+import { useI18n } from "../services/i18n";
+export function BottomNav() {
+  const { t } = useI18n(),
+    inset = useSafeAreaInsets(),
+    pathname = usePathname();
+  const items = [
+    { label: t("navHome"), icon: "home-outline", path: "/" },
+    { label: t("navPrices"), icon: "pricetags-outline", path: "/products" },
+    { label: t("navCards"), icon: "card-outline", path: "/cards" },
+    { label: t("navProfile"), icon: "person-outline", path: "/profile" },
+  ];
+  return (
+    <View
+      style={[
+        s.shell,
+        { height: 72 + inset.bottom, paddingBottom: Math.max(inset.bottom, 8) },
+      ]}
+    >
+      <Nav item={items[0]} active={pathname === "/"} />
+      <Nav item={items[1]} active={pathname.startsWith("/products")} />
+      <View style={s.centerSlot}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("reportProblem")}
+          onPress={() => router.push("/report-options" as never)}
+          style={s.centerButton}
+        >
+          <Ionicons name="add" size={32} color="white" />
+        </Pressable>
+        <Text style={s.centerLabel}>{t("navReport")}</Text>
+      </View>
+      <Nav item={items[2]} active={pathname.startsWith("/cards")} />
+      <Nav item={items[3]} active={pathname.startsWith("/profile")} />
+    </View>
+  );
+}
+function Nav({
+  item,
+  active,
+}: {
+  item: { label: string; icon: string; path: string };
+  active: boolean;
+}) {
+  return (
+    <Pressable style={s.item} onPress={() => router.push(item.path as never)}>
+      <Ionicons
+        name={(active ? item.icon.replace("-outline", "") : item.icon) as any}
+        size={22}
+        color={active ? colors.blue : colors.muted}
+      />
+      <Text numberOfLines={1} style={[s.label, active && s.active]}>
+        {item.label}
+      </Text>
+    </Pressable>
+  );
+}
+const s = StyleSheet.create({
+  shell: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "white",
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    paddingTop: 9,
+    paddingHorizontal: 4,
+    elevation: 18,
+    shadowColor: colors.deepNavy,
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+  },
+  item: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 3,
+    minHeight: 52,
+  },
+  label: { fontSize: 10.5, fontWeight: "700", color: colors.muted },
+  active: { color: colors.blue, fontWeight: "900" },
+  centerSlot: { flex: 1, alignItems: "center", top: -31 },
+  centerButton: {
+    height: 64,
+    width: 64,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.teal,
+    borderWidth: 5,
+    borderColor: "white",
+    shadowColor: colors.teal,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  centerLabel: { fontSize: 10.5, fontWeight: "900", color: colors.teal },
+});

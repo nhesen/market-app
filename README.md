@@ -59,7 +59,7 @@ python -m scripts.seed
 python -m alembic check
 ```
 
-The 2026-07-31 admin-completion audit reached Alembic revision `0010 (head)` and `alembic check` printed `No new upgrade operations detected.` Revision 0010 adds persisted audit templates, template-based task assignment, quality-flag resolution, re-audit due dates and tenant-aware product barcode uniqueness. A newly-created PostgreSQL database migrated from zero through 0010 successfully.
+The 2026-07-31 customer-completion audit reached Alembic revision `0011 (head)` and `alembic check` printed `No new upgrade operations detected.` Revision 0010 adds persisted admin-audit operations and tenant-aware barcode uniqueness. Revision 0011 adds publishable bilingual news bodies and types, product package size, branch media/coordinates, and notification deep-link metadata. A newly-created PostgreSQL database migrated from zero through 0011 successfully.
 
 The first seed printed `Seeded 2 organisations, 4 branches and 30 products`; the second printed `Demo data already exists`. Counts stayed `2 organisations / 4 branches / 30 products / 6 users / 2 memberships`, proving idempotency for the seeded rows. Customer market selection is stored separately from tenant ownership through `selected_organisation_id` and `customer_market_memberships`.
 
@@ -101,8 +101,9 @@ npx expo-doctor
 
 The current 2026-07-29 results are:
 
-- backend: `41 passed, 120 warnings in 17.17s`; warnings originate from `python-jose` using deprecated timezone-naive UTC internally;
-- migration: `0010 (head)` and no Alembic drift;
+- backend: `44 passed, 129 warnings in 28.71s`; warnings originate from `python-jose` using deprecated timezone-naive UTC internally;
+- migration: `0011 (head)` and no Alembic drift;
+- customer mobile: ESLint and strict TypeScript exited 0, translation integrity passed with `325 AZ / 325 EN` keys, Expo Doctor passed `18/18`, and Android export bundled `1,136` modules into a `3.39 MB` Hermes bundle;
 - admin: ESLint exited 0; Vite 6.4.3 built 1,729 modules in 3.57s (`423.95 kB`, gzip `125.65 kB` JavaScript);
 - mobile: ESLint exited 0; strict TypeScript exited 0; Expo Doctor passed `18/18` checks;
 - translations: `237 AZ keys / 237 EN keys`;

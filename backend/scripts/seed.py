@@ -21,15 +21,47 @@ CATALOG=[
 def product_asset(category:str)->str:
     return "/assets/retail-products-v2.png"
 
+NEWS_INVENTORY={
+"Nova Market":[
+("Nərimanov filialında self-checkout zonası genişləndirildi","Self-checkout area expanded at Narimanov branch","Pik saatlarda yeni terminallar istifadəyə verilib.","New terminals are available during peak hours.","Nərimanov filialında self-checkout zonası yenilənib. İlk günlərdə əməkdaşlarımız terminallardan istifadə üçün kömək edəcək.","The self-checkout area at Narimanov has been upgraded. Staff will help customers use the new terminals.",0,"NEW_SERVICE","/assets/retail-news-v2.png"),
+("Yay mövsümü üçün iş saatlarımız yeniləndi","Our summer opening hours have been updated","Seçilmiş filiallar saat 23:00-dək açıqdır.","Selected branches are open until 23:00.","Nərimanov, Yasamal və Xətai filiallarında alış-verişi saat 23:00-dək edə bilərsiniz. Bayram günləri üçün ayrıca bildiriş göndəriləcək.","Narimanov, Yasamal and Khatai branches remain open until 23:00. Separate notices will cover holiday schedules.",None,"HOLIDAY_HOURS","/assets/news-hours.svg"),
+("Plastik və şüşə üçün yeni təkrar emal nöqtəsi","New recycling point for plastic and glass","Təmiz qablaşdırmaları çeşidləmə qutularına yerləşdirə bilərsiniz.","Clean packaging can now be placed in sorting bins.","Yeni nöqtə plastik və şüşə qablaşdırmaların ayrıca toplanmasına kömək edir. Qablaşdırmanı boş və təmiz gətirməyiniz xahiş olunur.","The new point collects plastic and glass separately. Please bring packaging empty and clean.",0,"SUSTAINABILITY","/assets/news-recycling.svg"),
+("Təzə meyvə və tərəvəz bölməsi yeniləndi","Fresh produce section refreshed","Mövsümi məhsullar daha aydın məlumatla təqdim olunur.","Seasonal produce now has clearer information.","Yasamal filialındakı bölmənin düzülüşü yenilənib. Qiymət, mənşə və çəki məlumatları rəflərdə daha rahat görünür.","The Yasamal produce layout has been refreshed. Price, origin and weight details are easier to read.",1,"BRANCH_UPDATE","/assets/retail-branch-v2.png"),
+("Bu həftənin seçilmiş məhsulları","This week's selected products","Gündəlik məhsullar üzrə kampaniyaları tətbiqdən yoxlayın.","Check this week's campaigns for everyday essentials.","İştirak edən məhsullar və filial qiymətləri Endirimlər bölməsində göstərilir. Təkliflər stok mövcudluğuna görə dəyişə bilər.","Participating products and branch prices are listed in Discounts. Offers may vary with stock.",None,"CAMPAIGN","/assets/retail-campaign-v2.png"),
+("Yasamal filialında qısa texniki xidmət","Short maintenance window at Yasamal branch","Bazar günü bəzi kassalarda qısa fasilə olacaq.","Some checkouts will have a short Sunday maintenance window.","Saat 09:00–10:00 arasında iki terminalda planlı baxış keçiriləcək. Digər kassalar normal işləyəcək.","Two terminals will undergo maintenance between 09:00 and 10:00. Other checkouts will operate normally.",1,"MAINTENANCE","/assets/news-hours.svg"),
+("Çatdırılma sifarişləri üçün yeni təhvil nöqtəsi","New pickup point for delivery orders","Hazır sifarişləri ayrılmış masadan götürmək mümkündür.","Completed orders can be collected from a dedicated point.","Sifariş nömrənizi göstərərək paketinizi sürətli ala bilərsiniz. Böyük sifarişlər üçün əməkdaş dəstəyi mövcuddur.","Show your order number for quick collection. Staff support is available for larger orders.",2,"NEW_SERVICE","/assets/retail-news-v2.png"),
+("Əlçatan giriş sahəsi təkmilləşdirildi","Accessibility entrance area improved","Xətai filialının girişində hərəkət sahəsi genişləndirilib.","The entrance area at Khatai has been widened.","Pandus ətrafındakı keçid genişləndirilib və nişanlar yenilənib. Kömək üçün xidmət masasına müraciət edə bilərsiniz.","The passage around the ramp has been widened and signs updated. Ask the service desk if you need help.",2,"BRANCH_UPDATE","/assets/retail-branch-v2.png"),
+("Bonus kart sahibləri üçün yeni mükafatlar","New rewards for loyalty card members","Bonusları demo kuponlara dəyişmək mümkündür.","Points can now be exchanged for demo vouchers.","Kartlar bölməsində aktiv mükafatları görə bilərsiniz. Bu, simulyasiya edilmiş demo inteqrasiyadır.","Open Cards to see active rewards. This is a simulated demo integration.",None,"ANNOUNCEMENT","/assets/reward.svg"),
+("Bayram günlərində filialların iş qrafiki","Branch opening hours during the holiday period","Filial detallarında yenilənmiş saatları yoxlayın.","Check Branch Details for updated hours.","Bayram dövründə saatlar filiallara görə fərqlənə bilər. Səfərdən əvvəl seçilmiş filialı yoxlayın.","Hours may differ by branch during holidays. Check your selected branch before visiting.",None,"ANNOUNCEMENT","/assets/news-hours.svg")],
+"CityMart":[
+("Gənclik filialında xidmət masası yeniləndi","Customer service desk refreshed at Ganjlik","Müraciətlər üçün daha aydın növbə sistemi qurulub.","A clearer queue system is available for customer requests.","Müraciət növləri ayrıca işarələnib və doğru əməkdaşa daha sürətli yönləndirilir.","Request types are now clearly marked so customers reach the right colleague faster.",0,"BRANCH_UPDATE","/assets/retail-branch-v2.png"),
+("Səhər alış-verişi üçün təzə çörək saatları","Fresh bakery times for morning shopping","İlk isti çörək partiyası saat 08:30-da rəfə çıxır.","The first fresh bread batch reaches shelves at 08:30.","Günorta ikinci bişirmə də planlaşdırılır. Çeşid günə görə dəyişə bilər.","A second bake is planned around midday. The selection may vary by day.",None,"NEWS","/assets/product-food.svg"),
+("Kağız qəbzə alternativ seçimi","An alternative to paper receipts","Demo elektron qəbz seçimi haqqında kassada məlumat alın.","Ask at checkout about the demo electronic receipt option.","Elektron qəbz sınağı kağız istifadəsini azaltmaq məqsədi daşıyır və tətbiq demosunda simulyasiya olunur.","The electronic receipt trial aims to reduce paper use and is simulated in this app demo.",0,"SUSTAINABILITY","/assets/news-recycling.svg"),
+("Həftəsonu ailə səbəti təklifləri","Weekend family basket offers","Seçilmiş ərzaq və ev məhsullarında yeni qiymətlər aktivdir.","Weekend prices are active for selected essentials.","Tam siyahını Endirimlər bölməsində görə bilərsiniz. Qiymətlər Gənclik filialındakı stoka əsaslanır.","See the full list in Discounts. Prices reflect stock at the Ganjlik branch.",0,"CAMPAIGN","/assets/retail-campaign-v2.png"),
+("Soyuducu bölməsində planlı yoxlama","Planned inspection in the chilled section","Axşam bir koridorda qısa xidmət işi aparılacaq.","A short evening service check will take place in one aisle.","Saat 21:00-dan sonra süd bölməsinin sensorları yoxlanacaq. Məhsullar digər rəflərdə qalacaq.","After 21:00, dairy temperature sensors will be checked. Products remain available nearby.",0,"MAINTENANCE","/assets/retail-camera-v2.png"),
+("City Bonus üçün yeni demo kuponlar","New demo vouchers for City Bonus","Mükafatları Kartlar bölməsində görün.","See current rewards in Cards.","Təkliflər yalnız MARTIQ demo ssenarisidir və real loyallıq provayderi ilə əlaqəni ifadə etmir.","Offers are part of the MARTIQ demo and do not imply a real loyalty-provider connection.",None,"ANNOUNCEMENT","/assets/reward.svg")]
+}
+
+def seed_rich_news(db,organisation,branches):
+    for index,item in enumerate(NEWS_INVENTORY[organisation.name]):
+        if db.scalar(select(News.id).where(News.organisation_id==organisation.id,News.title_en==item[1])):continue
+        branch=branches[item[6]] if item[6] is not None and item[6]<len(branches) else None
+        db.add(News(organisation_id=organisation.id,branch_id=branch.id if branch else None,title_az=item[0],title_en=item[1],summary_az=item[2],summary_en=item[3],body_az=item[4],body_en=item[5],content_type=item[7],status="PUBLISHED",image_url=item[8],published_at=utc_now()-timedelta(days=index+1)))
+
 def enrich_customer_demo(db):
     nova=db.scalar(select(Organisation).where(Organisation.name=="Nova Market"));city=db.scalar(select(Organisation).where(Organisation.name=="CityMart"));customer=db.scalar(select(User).where(User.email=="customer@demo.az"))
     if not nova or not city or not customer:return
     if not customer.selected_organisation_id:customer.selected_organisation_id=nova.id
     for org in (nova,city):
         if not db.scalar(select(CustomerMarketMembership).where(CustomerMarketMembership.customer_id==customer.id,CustomerMarketMembership.organisation_id==org.id)):db.add(CustomerMarketMembership(customer_id=customer.id,organisation_id=org.id))
-    for product in db.scalars(select(Product)).all():product.image_url=product_asset(product.category)
-    for item in db.scalars(select(News)).all():item.image_url="/assets/retail-news-v2.png"
-    city_branch=db.scalar(select(Branch).where(Branch.organisation_id==city.id))
+    for product in db.scalars(select(Product)).all():
+        product.image_url=product_asset(product.category)
+        if not product.package_size:
+            parts=product.name.rsplit(" ",2);tail=" ".join(parts[-2:]);product.package_size=tail if any(char.isdigit() for char in tail) else None
+    nova_branches=db.scalars(select(Branch).where(Branch.organisation_id==nova.id).order_by(Branch.name)).all()
+    city_branches=db.scalars(select(Branch).where(Branch.organisation_id==city.id).order_by(Branch.name)).all()
+    seed_rich_news(db,nova,nova_branches);seed_rich_news(db,city,city_branches)
+    city_branch=city_branches[0]
     city_products=db.scalars(select(Product).where(Product.organisation_id==city.id)).all()
     if not city_products:
         city_catalog=[("City süd 1 L","City Fresh","Süd məhsulları",2.65),("Portağal şirəsi","Sun City","İçkilər",3.25),("Düyü 1 kq","City Choice","Ərzaq",3.55),("Maye sabun","Pure City","Şəxsi qulluq",4.2),("Kağız dəsmal","Home City","Ev məhsulları",2.95),("Mineral su","City Spring","İçkilər",1.1)]

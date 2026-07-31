@@ -15,6 +15,7 @@ class UserOut(BaseModel):
     full_name: str
     role: Role
     organisation_id: str | None
+    selected_organisation_id: str | None = None
     branch_id: str | None
     phone: str | None = None
     language: str = "az"
