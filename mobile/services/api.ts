@@ -1,4 +1,4 @@
-import * as SecureStore from "expo-secure-store";
+import { storage as SecureStore } from "./storage";
 
 export const apiRoot =
   process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000/api/v1";

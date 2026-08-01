@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { usePathname } from "expo-router";
-import * as SecureStore from "expo-secure-store";
+import { storage as SecureStore } from "../services/storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, radius, shadow, spacing, type } from "../constants/theme";
 import { mediaUrl } from "../services/api";

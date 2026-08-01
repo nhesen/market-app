@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import * as SecureStore from "expo-secure-store";
+import { storage as SecureStore } from "./storage";
 import az from "../locales/az";
 import en from "../locales/en";
 type Language = "az" | "en";

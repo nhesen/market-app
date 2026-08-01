@@ -2,7 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import * as SecureStore from "expo-secure-store";
+import { storage as SecureStore } from "../services/storage";
 import { Button } from "../components/ui";
 import { colors } from "../constants/theme";
 import { useI18n } from "../services/i18n";

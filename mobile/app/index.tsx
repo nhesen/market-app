@@ -11,7 +11,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import * as SecureStore from "expo-secure-store";
+import { storage as SecureStore } from "../services/storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { api, hasSession } from "../services/api";
 import { colors } from "../constants/theme";

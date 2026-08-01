@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { router, Stack, usePathname } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import * as SecureStore from "expo-secure-store";
+import { storage as SecureStore } from "../services/storage";
 import { I18nProvider } from "../services/i18n";
 import { restoreSession } from "../services/api";
 
