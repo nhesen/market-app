@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import {
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView as NativeScrollView,
@@ -341,7 +342,12 @@ function Section({
 }
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
-  page: { padding: 18, paddingBottom: 110, gap: 13 },
+  page: {
+    padding: 18,
+    paddingTop: Platform.OS === "web" ? 50 : 18,
+    paddingBottom: 110,
+    gap: 13,
+  },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   header: { flexDirection: "row", gap: 12 },
   hello: { fontSize: 25, fontWeight: "900", color: colors.navy },
