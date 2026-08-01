@@ -20,9 +20,12 @@ CATALOG=[
 
 def product_asset(name:str,category:str)->str:
     normalized=name.casefold()
-    if "qəhvə" in normalized:return "/assets/product-coffee-200g.png"
-    if "zeytun yağı" in normalized:return "/assets/product-olive-oil-500ml.png"
-    if "zibil torbası" in normalized:return "/assets/product-garbage-bags-20.png"
+    if "kərə yağı" in normalized:return "https://imageproxy.wolt.com/assets/688b9cffb2b18bf1da5377ee"
+    if "xiyar" in normalized:return "https://imageproxy.wolt.com/assets/6888bb6523fa16f725a9720a"
+    if "qəhvə" in normalized:return "https://imageproxy.wolt.com/assets/6888c4e023fa16f725a9feb9"
+    if "zeytun yağı" in normalized:return "https://imageproxy.wolt.com/assets/67f8e1ca5e06813d12110b46"
+    if "zibil torbası" in normalized:return "https://imageproxy.wolt.com/assets/69d2c3258e6190d55ea88d18"
+    if "nəm salfet" in normalized:return "https://imageproxy.wolt.com/assets/688b9e69b2b18bf1da5388df"
     return "/assets/retail-products-v2.png"
 
 NEWS_INVENTORY={
