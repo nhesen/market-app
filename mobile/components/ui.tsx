@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState } from "react";
 import {
   Image,
+  Platform,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -272,7 +273,7 @@ const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
   screen: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingTop: Platform.OS === "web" ? 50 : spacing.md,
     paddingBottom: 112,
     gap: spacing.md,
     backgroundColor: colors.background,
