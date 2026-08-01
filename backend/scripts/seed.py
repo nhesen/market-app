@@ -1,4 +1,4 @@
-from datetime import date,timedelta
+from datetime import date,datetime,timedelta
 from sqlalchemy import select
 from app.core.security import hash_password
 from app.db.session import Base,SessionLocal,engine
@@ -23,6 +23,9 @@ def product_asset(category:str)->str:
 
 NEWS_INVENTORY={
 "Nova Market":[
+("BRAVO İsmayıl Hidayətzadə küçəsində yeni mağaza açdı","BRAVO opens a new store on Ismayil Hidayatzade Street","Yeni mağaza 7/24 işləyir və açılışa özəl 500 məhsula 50%-dək endirim təqdim edir.","The new store operates 24/7 and offers opening discounts of up to 50% on 500 products.","BRAVO-nun İsmayıl Hidayətzadə küçəsi 130 ünvanında yerləşən yeni mağazası fəaliyyətə başlayıb. Rəsmi məlumata görə, mağaza müasir dizayn, geniş məhsul seçimi və gecə-gündüz xidmət təqdim edir. Mənbə: https://bravosupermarket.az/news/exibition/bravo-supermarketl-r-s-b-k-si-i-smayil-hiday-tzad-kuc-sind-yeni-magazasini-acdi/","BRAVO's new store at 130 Ismayil Hidayatzade Street is now open. According to the official announcement, it offers a modern shopping environment, a broad product range and 24/7 service. Source: https://bravosupermarket.az/news/exibition/bravo-supermarketl-r-s-b-k-si-i-smayil-hiday-tzad-kuc-sind-yeni-magazasini-acdi/",None,"OPENING","https://bravosupermarket.az/site/assets/files/4117/bravo_market_nerimanov-2.png","2026-07-24T10:00:00+00:00"),
+("BRAVO müştərilərlə növbəti “Qonağımız ol” görüşünü keçirdi","BRAVO holds another customer meeting","Müştərilər məhsullar, xidmət keyfiyyəti və alış təcrübəsi ilə bağlı fikirlərini rəhbərliklə bölüşüblər.","Customers shared feedback on products, service quality and their shopping experience with management.","BRAVO-nun baş ofisində keçirilən görüşdə müştərilərin təklifləri dinlənilib və yeni nəsil BRAVO BREND məhsulları təqdim olunub. Şirkət görüşləri mütəmadi davam etdirməyi planlaşdırır. Mənbə: https://bravosupermarket.az/news/layiheler/bravo-da-novbeti-qonagimiz-ol/","At a meeting in BRAVO's head office, customers shared suggestions and were introduced to new-generation BRAVO BRAND products. The company plans to continue these meetings regularly. Source: https://bravosupermarket.az/news/layiheler/bravo-da-novbeti-qonagimiz-ol/",None,"CUSTOMER_EXPERIENCE","https://bravosupermarket.az/site/assets/files/4027/qonaqol-1.jpg","2026-07-18T10:00:00+00:00"),
+("AL Market-də “Siyəzən Dadlı Toyuq Al, Qazan” lotereyası keçirildi","AL Market runs the Siyazan chicken prize lottery","Alış-veriş qəbzindəki QR-kodla qeydiyyatdan keçən müştərilər üç tirajda hədiyyələr qazanmaq imkanı əldə ediblər.","Customers registering through the receipt QR code could enter three prize draws.","AL Market-in 7 aprel–7 may 2026 tarixlərini əhatə edən rəsmi lotereyasında hər 10 AZN-lik uyğun alışa bir iştirak şansı verilib. Kampaniyanın final tirajı mayda başa çatıb. Mənbə: https://almarket.az/az/almedia/al-marketd-siyzn-dadli-toyuq-al-qazan-lotereyasi-basladi","AL Market's official lottery ran from 7 April to 7 May 2026, granting one entry for each eligible AZN 10 purchase. The final draw concluded in May. Source: https://almarket.az/az/almedia/al-marketd-siyzn-dadli-toyuq-al-qazan-lotereyasi-basladi",None,"CAMPAIGN","https://almarket.az/files/medias/26803aa207.webp","2026-04-07T10:00:00+00:00"),
 ("Nərimanov filialında self-checkout zonası genişləndirildi","Self-checkout area expanded at Narimanov branch","Pik saatlarda yeni terminallar istifadəyə verilib.","New terminals are available during peak hours.","Nərimanov filialında self-checkout zonası yenilənib. İlk günlərdə əməkdaşlarımız terminallardan istifadə üçün kömək edəcək.","The self-checkout area at Narimanov has been upgraded. Staff will help customers use the new terminals.",0,"NEW_SERVICE","/assets/retail-news-v2.png"),
 ("Yay mövsümü üçün iş saatlarımız yeniləndi","Our summer opening hours have been updated","Seçilmiş filiallar saat 23:00-dək açıqdır.","Selected branches are open until 23:00.","Nərimanov, Yasamal və Xətai filiallarında alış-verişi saat 23:00-dək edə bilərsiniz. Bayram günləri üçün ayrıca bildiriş göndəriləcək.","Narimanov, Yasamal and Khatai branches remain open until 23:00. Separate notices will cover holiday schedules.",None,"HOLIDAY_HOURS","/assets/news-hours.svg"),
 ("Plastik və şüşə üçün yeni təkrar emal nöqtəsi","New recycling point for plastic and glass","Təmiz qablaşdırmaları çeşidləmə qutularına yerləşdirə bilərsiniz.","Clean packaging can now be placed in sorting bins.","Yeni nöqtə plastik və şüşə qablaşdırmaların ayrıca toplanmasına kömək edir. Qablaşdırmanı boş və təmiz gətirməyiniz xahiş olunur.","The new point collects plastic and glass separately. Please bring packaging empty and clean.",0,"SUSTAINABILITY","/assets/news-recycling.svg"),
@@ -43,10 +46,16 @@ NEWS_INVENTORY={
 }
 
 def seed_rich_news(db,organisation,branches):
-    for index,item in enumerate(NEWS_INVENTORY[organisation.name]):
-        if db.scalar(select(News.id).where(News.organisation_id==organisation.id,News.title_en==item[1])):continue
+    inventory=NEWS_INVENTORY[organisation.name]
+    if organisation.name=="CityMart":inventory=NEWS_INVENTORY["Nova Market"][:3]+inventory
+    for index,item in enumerate(inventory):
+        existing=db.scalar(select(News).where(News.organisation_id==organisation.id,News.title_en==item[1]))
         branch=branches[item[6]] if item[6] is not None and item[6]<len(branches) else None
-        db.add(News(organisation_id=organisation.id,branch_id=branch.id if branch else None,title_az=item[0],title_en=item[1],summary_az=item[2],summary_en=item[3],body_az=item[4],body_en=item[5],content_type=item[7],status="PUBLISHED",image_url=item[8],published_at=utc_now()-timedelta(days=index+1)))
+        published_at=datetime.fromisoformat(item[9]) if len(item)>9 else datetime.fromisoformat("2026-01-01T10:00:00+00:00")-timedelta(days=index)
+        values={"branch_id":branch.id if branch else None,"title_az":item[0],"title_en":item[1],"summary_az":item[2],"summary_en":item[3],"body_az":item[4],"body_en":item[5],"content_type":item[7],"status":"PUBLISHED","image_url":item[8],"published_at":published_at}
+        if existing:
+            for key,value in values.items():setattr(existing,key,value)
+        else:db.add(News(organisation_id=organisation.id,**values))
 
 def enrich_customer_demo(db):
     nova=db.scalar(select(Organisation).where(Organisation.name=="Nova Market"));city=db.scalar(select(Organisation).where(Organisation.name=="CityMart"));customer=db.scalar(select(User).where(User.email=="customer@demo.az"))
