@@ -18,14 +18,37 @@ CATALOG=[
 ("Şampun 400 ml","İnci","Şəxsi qulluq",6.90),("Sabun 4-lü","İnci","Şəxsi qulluq",3.50),("Uşaq bezi 24-lü","Balaca","Uşaq məhsulları",14.90),("Nəm salfet 72-li","Balaca","Uşaq məhsulları",3.90),
 ]
 
+PRODUCT_ASSETS={
+    "təzə süd":"https://imageproxy.wolt.com/assets/69983ffe3eb3341f036e615d",
+    "kefir":"https://imageproxy.wolt.com/assets/688b9ee3a3eb62eeb95c4f96",
+    "qatıq":"https://imageproxy.wolt.com/wolt-prod-production-wm-assortment-images/categories/3d48852b-d8b4-4e49-b436-b5625aff6e3e.png",
+    "kərə yağı":"https://imageproxy.wolt.com/assets/688b9cffb2b18bf1da5377ee",
+    "yulaf lopası":"https://imageproxy.wolt.com/assets/6888bc6023fa16f725a98263",
+    "düyü":"https://imageproxy.wolt.com/assets/67bdcc1c7d14106f0111657e",
+    "makaron":"https://imageproxy.wolt.com/assets/67d93f1e9f3f5515b9d9e15e",
+    "zeytun yağı":"https://imageproxy.wolt.com/assets/67f8e1ca5e06813d12110b46",
+    "alma şirəsi":"https://imageproxy.wolt.com/assets/688b9bdab2b18bf1da536fb4",
+    "mineral su":"https://imageproxy.wolt.com/assets/688b9b0223fa16f725af9537",
+    "qara çay":"https://imageproxy.wolt.com/assets/688b98eca3eb62eeb95c1f59",
+    "qəhvə":"https://imageproxy.wolt.com/assets/6888c4e023fa16f725a9feb9",
+    "alma 1":"https://imageproxy.wolt.com/assets/688b9c9923fa16f725afb09b",
+    "banan":"https://imageproxy.wolt.com/assets/688b98e9a3eb62eeb95c1ed3",
+    "pomidor":"https://imageproxy.wolt.com/assets/6888b9f21f0cac713af61952",
+    "xiyar":"https://imageproxy.wolt.com/assets/6888bb6523fa16f725a9720a",
+    "qabyuyan maye":"https://imageproxy.wolt.com/assets/688b9bdeb2b18bf1da537047",
+    "paltar yuyucu":"https://imageproxy.wolt.com/assets/688b98e0a3eb62eeb95c1cfd",
+    "kağız dəsmal":"https://imageproxy.wolt.com/assets/6888be27a3eb62eeb95622f8",
+    "zibil torbası":"https://imageproxy.wolt.com/assets/69d2c3258e6190d55ea88d18",
+    "şampun":"https://imageproxy.wolt.com/assets/68f0be7f37e9a5025614f465",
+    "sabun":"https://imageproxy.wolt.com/assets/688b9dcb23fa16f725afc247",
+    "uşaq bezi":"https://imageproxy.wolt.com/assets/6888bc2e1f0cac713af64b4c",
+    "nəm salfet":"https://imageproxy.wolt.com/assets/688b9e69b2b18bf1da5388df",
+}
+
 def product_asset(name:str,category:str)->str:
     normalized=name.casefold()
-    if "kərə yağı" in normalized:return "https://imageproxy.wolt.com/assets/688b9cffb2b18bf1da5377ee"
-    if "xiyar" in normalized:return "https://imageproxy.wolt.com/assets/6888bb6523fa16f725a9720a"
-    if "qəhvə" in normalized:return "https://imageproxy.wolt.com/assets/6888c4e023fa16f725a9feb9"
-    if "zeytun yağı" in normalized:return "https://imageproxy.wolt.com/assets/67f8e1ca5e06813d12110b46"
-    if "zibil torbası" in normalized:return "https://imageproxy.wolt.com/assets/69d2c3258e6190d55ea88d18"
-    if "nəm salfet" in normalized:return "https://imageproxy.wolt.com/assets/688b9e69b2b18bf1da5388df"
+    for product_name,image_url in PRODUCT_ASSETS.items():
+        if product_name in normalized:return image_url
     return "/assets/retail-products-v2.png"
 
 NEWS_INVENTORY={
