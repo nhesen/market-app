@@ -1,6 +1,6 @@
-# MARTIQ
+# Baxish
 
-MARTIQ is a retail operations platform that combines camera incidents, employee audits, and customer reports in one workflow and manages each issue from detection to resolution.
+Baxish is a retail operations platform that combines camera incidents, employee audits, and customer reports in one workflow and manages each issue from detection to resolution.
 
 ## Working MVP slice
 
@@ -16,7 +16,7 @@ docker compose up -d db
 
 cd backend
 python -m pip install -r requirements.txt
-$env:DATABASE_URL='postgresql+psycopg://martiq:martiq@localhost:5432/martiq'
+$env:DATABASE_URL='postgresql+psycopg://baxish:baxish@localhost:5432/baxish'
 python -m alembic upgrade head
 python -m scripts.seed
 python -m scripts.seed
@@ -39,19 +39,19 @@ npx expo start
 
 Admin: `http://localhost:5173`; API docs: `http://localhost:8000/docs`. For a physical phone set `EXPO_PUBLIC_API_URL` to the computer's LAN address.
 
-Demo credentials (password `Demo123!`): `customer@demo.az`, `branch@demo.az`, `head@demo.az`, `staff@demo.az`, `platform@martiq.az`.
+Demo credentials (password `Demo123!`): `customer@demo.az`, `branch@demo.az`, `head@demo.az`, `staff@demo.az`, `platform@baxish.az`.
 
-The React admin has independent route trees and navigation for `BRANCH_ADMIN` (`/branch`), `HEAD_OFFICE_ADMIN` (`/head`), and `PLATFORM_ADMIN` (`/platform`). These are presentation guards only; every corresponding API endpoint also enforces branch, organisation, or platform scope on the backend. Use `branch@demo.az`, `head@demo.az`, or `platform@martiq.az` to verify each workspace.
+The React admin has independent route trees and navigation for `BRANCH_ADMIN` (`/branch`), `HEAD_OFFICE_ADMIN` (`/head`), and `PLATFORM_ADMIN` (`/platform`). These are presentation guards only; every corresponding API endpoint also enforces branch, organisation, or platform scope on the backend. Use `branch@demo.az`, `head@demo.az`, or `platform@baxish.az` to verify each workspace.
 
 ## Clean PostgreSQL verification
 
-Warning: `docker compose down --volumes` deletes the local MARTIQ PostgreSQL volume. Use it only when a clean QA database is intended.
+Warning: `docker compose down --volumes` deletes the local Baxish PostgreSQL volume. Use it only when a clean QA database is intended.
 
 ```powershell
 docker compose down --volumes --remove-orphans
 docker compose up -d db
 cd backend
-$env:DATABASE_URL='postgresql+psycopg://martiq:martiq@localhost:5432/martiq'
+$env:DATABASE_URL='postgresql+psycopg://baxish:baxish@localhost:5432/baxish'
 python -m alembic upgrade head
 python -m alembic current
 python -m scripts.seed
@@ -69,7 +69,7 @@ Customer reports, staff-audit findings, camera events, and manual admin entries 
 
 ## Hybrid vision demo
 
-Run `python -m scripts.generate_vision_videos` from `backend` to create reproducible normal, floor-hazard, blocked-aisle, depleted-promo and queue MP4 inputs. They are controlled pre-recorded demos, not RTSP. MARTIQ uses explicit OpenCV/ROI rules for the controlled hazard and coverage demos and reserves optional YOLO for applicable pretrained classes such as people. No labelled custom spill dataset or custom hazard weights are included, so the project does not describe its spill rule as YOLO. See [vision architecture](docs/vision.md).
+Run `python -m scripts.generate_vision_videos` from `backend` to create reproducible normal, floor-hazard, blocked-aisle, depleted-promo and queue MP4 inputs. They are controlled pre-recorded demos, not RTSP. Baxish uses explicit OpenCV/ROI rules for the controlled hazard and coverage demos and reserves optional YOLO for applicable pretrained classes such as people. No labelled custom spill dataset or custom hazard weights are included, so the project does not describe its spill rule as YOLO. See [vision architecture](docs/vision.md).
 
 ## Staff camera audit
 
@@ -82,7 +82,7 @@ Run each block from the repository root in PowerShell:
 ```powershell
 cd backend
 python -m pytest -q
-$env:DATABASE_URL='postgresql+psycopg://martiq:martiq@localhost:5432/martiq'
+$env:DATABASE_URL='postgresql+psycopg://baxish:baxish@localhost:5432/baxish'
 python -m alembic check
 ```
 

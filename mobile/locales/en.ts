@@ -1,7 +1,7 @@
 import az from "./az";
 const en: Record<keyof typeof az, string> = {
   ...az,
-  appName: "MARTIQ",
+  appName: "Baxish",
   continue: "Continue",
   back: "Back",
   retry: "Try again",
@@ -41,7 +41,7 @@ const en: Record<keyof typeof az, string> = {
   forgotSent: "Request accepted",
   forgotSentBody: "If the account exists, instructions will be sent by email.",
   registerTitle: "Create account",
-  registerSubtitle: "Use MARTIQ services securely",
+  registerSubtitle: "Use Baxish services securely",
   firstName: "First name",
   lastName: "Last name",
   phone: "Phone",

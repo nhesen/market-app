@@ -3,8 +3,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "MARTIQ API"
-    database_url: str = "sqlite:///./martiq.db"
+    app_name: str = "Baxish API"
+    database_url: str = "sqlite:///./baxish.db"
     jwt_secret: str = "development-secret"
     jwt_refresh_secret: str = "development-refresh-secret"
     access_token_expire_minutes: int = 30

@@ -350,7 +350,7 @@ export async function uploadAsset(
       type === "video/mp4" ? "mp4" : type === "image/png" ? "png" : "jpg";
   body.append("file", {
     uri,
-    name: `martiq-evidence.${extension}`,
+    name: `baxish-evidence.${extension}`,
     type,
   } as any);
   return new Promise<any>((resolve, reject) => {

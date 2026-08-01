@@ -61,7 +61,7 @@ def test_controlled_promo_depletion_uses_roi_coverage(tmp_path,database):
 
 
 def test_queue_fails_honestly_without_real_yolo_weights(tmp_path,database,monkeypatch):
-    monkeypatch.delenv("MARTIQ_YOLO_WEIGHTS",raising=False)
+    monkeypatch.delenv("BAXISH_YOLO_WEIGHTS",raising=False)
     result,incident,_,_=run_rule(database,tmp_path,"QUEUE",[blank(),blank()],1)
     assert result["status"]=="error" and "real YOLO weights" in result["error"] and incident is None
 

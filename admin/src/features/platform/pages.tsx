@@ -440,7 +440,7 @@ export function SystemSettingsPage() {
     client = useQueryClient(),
     [form, setForm] = useState({
       key: "support_email",
-      value: "support@martiq.az",
+      value: "support@baxish.az",
     }),
     mutation = useMutation({
       mutationFn: () => platformApi.setSetting(form),

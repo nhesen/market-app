@@ -50,7 +50,7 @@ const en: Record<string, string> = {
   Aktiv: "Active",
 };
 export const adminLanguage = (): AdminLanguage =>
-  localStorage.getItem("martiq_admin_language") === "en" ? "en" : "az";
+  localStorage.getItem("baxish_admin_language") === "en" ? "en" : "az";
 const azAliases: Record<string, string> = {
   Dashboard: "İdarə paneli",
   "Staff overview": "Əməkdaş icmalı",
@@ -88,7 +88,7 @@ Object.assign(en, {
 export const tr = (value: string) =>
   adminLanguage() === "en" ? (en[value] ?? value) : (azAliases[value] ?? value);
 export function setAdminLanguage(value: AdminLanguage) {
-  localStorage.setItem("martiq_admin_language", value);
+  localStorage.setItem("baxish_admin_language", value);
 }
 export const translationStats = {
   az: Object.keys(en).length,

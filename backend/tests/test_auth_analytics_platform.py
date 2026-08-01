@@ -21,11 +21,11 @@ def test_operational_analytics_metrics_and_filters(client):
 
 def test_platform_access_is_role_protected(client,admin_token):
     assert client.get("/api/v1/platform/organisations",headers=auth(admin_token)).status_code==403
-    platform=client.post("/api/v1/auth/login",json={"email":"platform@martiq.az","password":"Demo123!"}).json()["access_token"]
+    platform=client.post("/api/v1/auth/login",json={"email":"platform@baxish.az","password":"Demo123!"}).json()["access_token"]
     assert client.get("/api/v1/platform/usage",headers=auth(platform)).status_code==200
 
 def test_platform_can_edit_organisation_and_deactivate_tenant_admin(client):
-    platform=client.post("/api/v1/auth/login",json={"email":"platform@martiq.az","password":"Demo123!"}).json()["access_token"];headers=auth(platform)
+    platform=client.post("/api/v1/auth/login",json={"email":"platform@baxish.az","password":"Demo123!"}).json()["access_token"];headers=auth(platform)
     org=client.get("/api/v1/platform/organisations",headers=headers).json()[0]
     updated=client.patch(f'/api/v1/platform/organisations/{org["id"]}',headers=headers,json={"name":org["name"],"is_active":False})
     assert updated.status_code==200 and updated.json()["is_active"] is False
@@ -36,7 +36,7 @@ def test_platform_can_edit_organisation_and_deactivate_tenant_admin(client):
     client.patch(f'/api/v1/platform/admins/{admin["id"]}',headers=headers,json={"full_name":admin["full_name"],"is_active":True,"branch_id":admin["branch_id"]})
 
 def test_all_demo_roles_login_and_logout(client):
-    expected={"customer@demo.az":"CUSTOMER","staff@demo.az":"STAFF","branch@demo.az":"BRANCH_ADMIN","head@demo.az":"HEAD_OFFICE_ADMIN","platform@martiq.az":"PLATFORM_ADMIN"}
+    expected={"customer@demo.az":"CUSTOMER","staff@demo.az":"STAFF","branch@demo.az":"BRANCH_ADMIN","head@demo.az":"HEAD_OFFICE_ADMIN","platform@baxish.az":"PLATFORM_ADMIN"}
     for email,role in expected.items():
         response=client.post("/api/v1/auth/login",json={"email":email,"password":"Demo123!"})
         assert response.status_code==200

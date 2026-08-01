@@ -1,5 +1,5 @@
 import os
-os.environ["DATABASE_URL"] = "sqlite:///./test_martiq.db"
+os.environ["DATABASE_URL"] = "sqlite:///./test_baxish.db"
 import pytest
 from fastapi.testclient import TestClient
 from app.db.session import Base, engine

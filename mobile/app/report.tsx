@@ -347,7 +347,7 @@ export default function Report() {
       {step === 3 ? (
         <>
           <Card>
-            <Text style={s.ai}>MARTIQ Assist</Text>
+            <Text style={s.ai}>Baxish Assist</Text>
             <Text>{aiResult?.summary}</Text>
             {aiResult?.warnings?.map((x: string) => (
               <Text style={s.warning} key={x}>

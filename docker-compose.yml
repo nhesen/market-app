@@ -2,16 +2,15 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: martiq
-      POSTGRES_USER: martiq
-      POSTGRES_PASSWORD: martiq
+      POSTGRES_DB: baxish
+      POSTGRES_USER: baxish
+      POSTGRES_PASSWORD: baxish
     ports: ["5432:5432"]
-    volumes: [martiq_data:/var/lib/postgresql/data]
+    volumes: [baxish_data:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U martiq"]
+      test: ["CMD-SHELL", "pg_isready -U baxish"]
       interval: 5s
       timeout: 5s
       retries: 10
 volumes:
-  martiq_data:
-
+  baxish_data:

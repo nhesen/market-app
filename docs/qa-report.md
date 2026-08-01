@@ -1,4 +1,4 @@
-# MARTIQ comprehensive QA report
+# Baxish comprehensive QA report
 
 Date: 2026-07-29  
 Scope: backend API/database, tenant and role security, media, audit/re-audit, OCR, OpenCV vision, migrations, mobile Expo project, admin production build, dependencies and route inventory.
@@ -51,7 +51,7 @@ The implemented MVP slices pass automated functional, type and build validation.
 
 ### Admin
 
-`react-router-dom` is pinned to `7.18.1`. npm reports a high advisory for React Router RSC action processing. MARTIQ admin uses classic client-side `BrowserRouter` only—no RSC, server actions, SSR, `ScrollRestoration`, or framework action endpoints—so the reported vulnerable path is not reachable in this application. The package must still be upgraded when the React Router project publishes a release that resolves the RSC advisory without reintroducing the broader redirect/XSS advisories affecting older versions.
+`react-router-dom` is pinned to `7.18.1`. npm reports a high advisory for React Router RSC action processing. Baxish admin uses classic client-side `BrowserRouter` only—no RSC, server actions, SSR, `ScrollRestoration`, or framework action endpoints—so the reported vulnerable path is not reachable in this application. The package must still be upgraded when the React Router project publishes a release that resolves the RSC advisory without reintroducing the broader redirect/XSS advisories affecting older versions.
 
 ### Mobile
 

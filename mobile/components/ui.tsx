@@ -234,7 +234,7 @@ export function RemoteImage({
     size = height === 92 ? { width: 92 } : { width: "100%" as const };
   return (
     <Image
-      accessibilityLabel={url ? "MARTIQ retail media" : "MARTIQ placeholder"}
+      accessibilityLabel={url ? "Baxish retail media" : "Baxish placeholder"}
       accessibilityIgnoresInvertColors
       source={source}
       onError={() => setFailed(true)}

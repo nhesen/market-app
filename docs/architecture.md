@@ -1,6 +1,6 @@
 # Architecture
 
-MARTIQ is a modular monolith. Expo and Vite clients call one versioned FastAPI REST API. SQLAlchemy owns persistence in PostgreSQL. Every tenant record is scoped by `organisation_id`; branch-admin access is additionally scoped by `branch_id`. Customer reports, audit findings, and camera events converge on `Incident` plus an append-only status history.
+Baxish is a modular monolith. Expo and Vite clients call one versioned FastAPI REST API. SQLAlchemy owns persistence in PostgreSQL. Every tenant record is scoped by `organisation_id`; branch-admin access is additionally scoped by `branch_id`. Customer reports, audit findings, and camera events converge on `Incident` plus an append-only status history.
 
 ```text
 Expo customer/staff ─┐

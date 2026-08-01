@@ -46,7 +46,7 @@ def test_head_office_cannot_cross_organisation(client):
 
 
 def test_platform_admin_authorised_cross_tenant_access(client):
-    platform = login(client, "platform@martiq.az")
+    platform = login(client, "platform@baxish.az")
     organisations = client.get("/api/v1/platform/organisations", headers=auth(platform))
     assert organisations.status_code == 200 and len(organisations.json()) >= 2
     for organisation in organisations.json():

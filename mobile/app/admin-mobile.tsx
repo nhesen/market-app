@@ -132,7 +132,7 @@ export default function AdminMobile({
           <Ionicons name="shield-checkmark" size={25} color="white" />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={s.brand}>MARTIQ</Text>
+          <Text style={s.brand}>Baxish</Text>
           <Text style={s.role}>{roleTitle}</Text>
         </View>
         <Pressable

@@ -1,6 +1,6 @@
-# MARTIQ hybrid vision pipeline
+# Baxish hybrid vision pipeline
 
-MARTIQ does not claim that a generic YOLO model detects every retail event, and it makes no 100% accuracy claim. Camera results are operational signals that require configured ROIs, persistence and human review. Product-loss risk is not labelled as theft detection.
+Baxish does not claim that a generic YOLO model detects every retail event, and it makes no 100% accuracy claim. Camera results are operational signals that require configured ROIs, persistence and human review. Product-loss risk is not labelled as theft detection.
 
 ## Engines
 
@@ -11,7 +11,7 @@ MARTIQ does not claim that a generic YOLO model detects every retail event, and 
 | `BLOCKED_AISLE` | `OPENCV_CONTOUR_SUPPORT` | Large bright contour coverage in a controlled aisle demo. A production deployment may replace/support this with applicable YOLO object classes. |
 | `QUEUE` | `YOLO_PERSON_DETECTION` | Count of pretrained YOLO person detections inside the ROI. It runs only when real local weights are configured. |
 
-No custom spill/hazard model is included because this repository has no labelled spill dataset and no trained custom weights. The application therefore identifies the spill demo as OpenCV rule-based segmentation. Queue processing requires `pip install -r requirements-vision.txt` and `MARTIQ_YOLO_WEIGHTS` pointing to a real local weights file; the application does not download or invent weights and returns a clear processing error when either dependency is absent.
+No custom spill/hazard model is included because this repository has no labelled spill dataset and no trained custom weights. The application therefore identifies the spill demo as OpenCV rule-based segmentation. Queue processing requires `pip install -r requirements-vision.txt` and `BAXISH_YOLO_WEIGHTS` pointing to a real local weights file; the application does not download or invent weights and returns a clear processing error when either dependency is absent.
 
 ## Lifecycle and evidence
 

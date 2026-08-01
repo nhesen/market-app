@@ -16,7 +16,7 @@ import app.models  # noqa: F401
 Base.metadata.create_all(bind=engine)
 app = FastAPI(title=settings.app_name, version="0.1.0")
 logging.basicConfig(level=logging.INFO,format='%(asctime)s %(levelname)s %(name)s %(message)s')
-logger=logging.getLogger("martiq.request")
+logger=logging.getLogger("baxish.request")
 @app.middleware("http")
 async def request_log(request:Request,call_next):
     started=time.perf_counter()
@@ -35,4 +35,4 @@ app.include_router(admin_router)
 app.mount("/assets",StaticFiles(directory="assets"),name="assets")
 
 @app.get("/health")
-def health(): return {"status": "ok", "service": "martiq-api"}
+def health(): return {"status": "ok", "service": "baxish-api"}

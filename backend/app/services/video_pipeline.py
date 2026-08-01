@@ -22,9 +22,9 @@ RULE_ENGINES={
 class YoloPersonDetector:
     """Optional adapter. It is active only when real Ultralytics runtime and weights are supplied."""
     def __init__(self):
-        weights=os.getenv("MARTIQ_YOLO_WEIGHTS","")
+        weights=os.getenv("BAXISH_YOLO_WEIGHTS","")
         if not weights or not Path(weights).is_file():
-            raise RuntimeError("QUEUE requires MARTIQ_YOLO_WEIGHTS pointing to real YOLO weights; no model was bundled or downloaded.")
+            raise RuntimeError("QUEUE requires BAXISH_YOLO_WEIGHTS pointing to real YOLO weights; no model was bundled or downloaded.")
         try:
             from ultralytics import YOLO
         except ImportError as exc:

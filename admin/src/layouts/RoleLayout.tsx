@@ -23,7 +23,7 @@ function RoleLayout({
   return (
     <div className="app">
       <aside className="sidebar">
-        <div className="brand">MARTIQ</div>
+        <div className="brand">Baxish</div>
         <div className="role-title">{tr(title)}</div>
         <div className="group">{subtitle}</div>
         {items.map((item) => (

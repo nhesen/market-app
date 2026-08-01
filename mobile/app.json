@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "MARTIQ",
-    "slug": "martiq",
-    "scheme": "martiq",
+    "name": "Baxish",
+    "slug": "baxish",
+    "scheme": "baxish",
     "plugins": [
       "expo-router",
       "expo-secure-store",
@@ -12,10 +12,10 @@
       "typedRoutes": true
     },
     "ios": {
-      "bundleIdentifier": "az.martiq.app"
+      "bundleIdentifier": "az.baxish.app"
     },
     "android": {
-      "package": "az.martiq.app"
+      "package": "az.baxish.app"
     }
   }
 }

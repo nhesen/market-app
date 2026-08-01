@@ -51,8 +51,8 @@ export const mediaUrl = (value?: string) =>
       ? value
       : root.replace(/\/api\/v1\/?$/, "") + value
     : "";
-let token = localStorage.getItem("martiq_admin_token") ?? "";
-let refreshToken = localStorage.getItem("martiq_admin_refresh") ?? "";
+let token = localStorage.getItem("baxish_admin_token") ?? "";
+let refreshToken = localStorage.getItem("baxish_admin_refresh") ?? "";
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   let response = await fetch(root + path, {
@@ -73,8 +73,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       const data = await renewed.json();
       token = data.access_token;
       refreshToken = data.refresh_token ?? refreshToken;
-      localStorage.setItem("martiq_admin_token", token);
-      localStorage.setItem("martiq_admin_refresh", refreshToken);
+      localStorage.setItem("baxish_admin_token", token);
+      localStorage.setItem("baxish_admin_refresh", refreshToken);
       response = await fetch(root + path, {
         ...init,
         headers: {
@@ -122,15 +122,15 @@ export const session = {
       throw new Error("Bu hesab admin panel üçün deyil");
     token = data.access_token;
     refreshToken = data.refresh_token;
-    localStorage.setItem("martiq_admin_token", token);
-    localStorage.setItem("martiq_admin_refresh", refreshToken);
-    localStorage.setItem("martiq_admin_user", JSON.stringify(data.user));
+    localStorage.setItem("baxish_admin_token", token);
+    localStorage.setItem("baxish_admin_refresh", refreshToken);
+    localStorage.setItem("baxish_admin_user", JSON.stringify(data.user));
     return data.user;
   },
   user: () => {
     try {
       return JSON.parse(
-        localStorage.getItem("martiq_admin_user") ?? "null",
+        localStorage.getItem("baxish_admin_user") ?? "null",
       ) as AdminUser | null;
     } catch {
       return null;
@@ -140,9 +140,7 @@ export const session = {
   logout: () => {
     token = "";
     refreshToken = "";
-    localStorage.removeItem("martiq_admin_token");
-    localStorage.removeItem("martiq_admin_refresh");
-    localStorage.removeItem("martiq_admin_user");
+    for (const key of ["baxish_admin_token","baxish_admin_refresh","baxish_admin_user"]) localStorage.removeItem(key);
   },
 };
 export const operationsApi = {

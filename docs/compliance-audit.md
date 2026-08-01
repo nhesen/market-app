@@ -1,4 +1,4 @@
-# MARTIQ current compliance audit
+# Baxish current compliance audit
 
 Audit date: 2026-07-31
 
@@ -17,7 +17,7 @@ Evidence policy: `VERIFIED_WORKING` requires a current migration, automated test
 | Admin lint | ESLint exit 0, zero warnings |
 | Admin production build | Vite 6.4.3, 1,729 modules, built in 3.57s |
 | Admin JavaScript output | 423.95 kB, gzip 125.65 kB |
-| Runtime database | Clean Docker PostgreSQL database `martiq_admin_final` |
+| Runtime database | Clean Docker PostgreSQL database `baxish_admin_final` |
 
 The warnings are emitted by third-party `python-jose` calling deprecated `datetime.utcnow()`. Application-owned UTC helpers are timezone-aware.
 
@@ -86,7 +86,7 @@ The repository's browser-driven visual click-through could not be executed in th
 
 ## Runtime flows — clean PostgreSQL
 
-FastAPI was started against `martiq_admin_final`, a newly-created PostgreSQL Docker database migrated through 0010.
+FastAPI was started against `baxish_admin_final`, a newly-created PostgreSQL Docker database migrated through 0010.
 
 ### Customer report lifecycle
 
@@ -127,7 +127,7 @@ platform and admin mutations produced AuditLog records
 
 ```powershell
 docker compose up -d db
-$env:DATABASE_URL='postgresql+psycopg://martiq:martiq@localhost:5432/martiq_admin_final'
+$env:DATABASE_URL='postgresql+psycopg://baxish:baxish@localhost:5432/baxish_admin_final'
 python -m alembic upgrade head
 python -m alembic current
 python -m alembic check
@@ -147,11 +147,11 @@ npm run build
 - Production object storage/CDN and signed media delivery require deployment credentials and infrastructure.
 - No custom retail-hazard model is claimed because no production labelled dataset or weights are supplied.
 
-`npm audit --omit=dev` currently reports the upstream React Router RSC-mode advisory for the latest published `react-router-dom@7.18.2`. MARTIQ Admin is a client-only `BrowserRouter` SPA and does not enable React Server Components, server actions or React Router framework actions, so the vulnerable execution mode is not present. The dependency is kept on the latest published release and should be upgraded when the upstream package publishes a fixed version.
+`npm audit --omit=dev` currently reports the upstream React Router RSC-mode advisory for the latest published `react-router-dom@7.18.2`. Baxish Admin is a client-only `BrowserRouter` SPA and does not enable React Server Components, server actions or React Router framework actions, so the vulnerable execution mode is not present. The dependency is kept on the latest published release and should be upgraded when the upstream package publishes a fixed version.
 
 ## Customer mobile final re-audit — 2026-07-31
 
-Current PostgreSQL evidence used a newly-created `martiq_customer_final` database. Alembic migrated every revision from `0001` through `0011`; `alembic current` returned `0011 (head)` and `alembic check` returned `No new upgrade operations detected.` The first seed printed `Seeded 2 organisations, 4 branches and 30 products`; the second printed `Demo data already exists`.
+Current PostgreSQL evidence used a newly-created `baxish_customer_final` database. Alembic migrated every revision from `0001` through `0011`; `alembic current` returned `0011 (head)` and `alembic check` returned `No new upgrade operations detected.` The first seed printed `Seeded 2 organisations, 4 branches and 30 products`; the second printed `Demo data already exists`.
 
 Customer verification added direct coverage for published organisation news, selected-branch news, rejection of another branch/organisation, draft/archive/expired filtering, detail-scope enforcement, seed idempotency and authenticated owner media. The complete backend suite returned `44 passed, 129 warnings in 28.71s`.
 

@@ -1,5 +1,5 @@
 export default {
-  appName: "MARTIQ",
+  appName: "Baxish",
   continue: "Davam et",
   back: "Geri",
   retry: "Yenidən yoxla",
@@ -40,7 +40,7 @@ export default {
   forgotSent: "Sorğu qəbul edildi",
   forgotSentBody: "Hesab mövcuddursa, bərpa təlimatı e-poçta göndəriləcək.",
   registerTitle: "Hesab yaradın",
-  registerSubtitle: "MARTIQ xidmətlərindən təhlükəsiz istifadə edin",
+  registerSubtitle: "Baxish xidmətlərindən təhlükəsiz istifadə edin",
   firstName: "Ad",
   lastName: "Soyad",
   phone: "Telefon",
