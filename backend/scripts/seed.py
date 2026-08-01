@@ -18,7 +18,11 @@ CATALOG=[
 ("Şampun 400 ml","İnci","Şəxsi qulluq",6.90),("Sabun 4-lü","İnci","Şəxsi qulluq",3.50),("Uşaq bezi 24-lü","Balaca","Uşaq məhsulları",14.90),("Nəm salfet 72-li","Balaca","Uşaq məhsulları",3.90),
 ]
 
-def product_asset(category:str)->str:
+def product_asset(name:str,category:str)->str:
+    normalized=name.casefold()
+    if "qəhvə" in normalized:return "/assets/product-coffee-200g.png"
+    if "zeytun yağı" in normalized:return "/assets/product-olive-oil-500ml.png"
+    if "zibil torbası" in normalized:return "/assets/product-garbage-bags-20.png"
     return "/assets/retail-products-v2.png"
 
 NEWS_INVENTORY={
@@ -57,6 +61,16 @@ def seed_rich_news(db,organisation,branches):
             for key,value in values.items():setattr(existing,key,value)
         else:db.add(News(organisation_id=organisation.id,**values))
 
+def remove_retired_demo_news(db):
+    retired_titles={
+        "Summer hours updated",
+        "Our summer opening hours have been updated",
+        "New recycling point",
+        "New recycling point for plastic and glass",
+    }
+    for item in db.scalars(select(News).where(News.title_en.in_(retired_titles))).all():
+        db.delete(item)
+
 def enrich_customer_demo(db):
     nova=db.scalar(select(Organisation).where(Organisation.name=="Nova Market"));city=db.scalar(select(Organisation).where(Organisation.name=="CityMart"));customer=db.scalar(select(User).where(User.email=="customer@demo.az"))
     if not nova or not city or not customer:return
@@ -64,7 +78,7 @@ def enrich_customer_demo(db):
     for org in (nova,city):
         if not db.scalar(select(CustomerMarketMembership).where(CustomerMarketMembership.customer_id==customer.id,CustomerMarketMembership.organisation_id==org.id)):db.add(CustomerMarketMembership(customer_id=customer.id,organisation_id=org.id))
     for product in db.scalars(select(Product)).all():
-        product.image_url=product_asset(product.category)
+        product.image_url=product_asset(product.name,product.category)
         if not product.package_size:
             parts=product.name.rsplit(" ",2);tail=" ".join(parts[-2:]);product.package_size=tail if any(char.isdigit() for char in tail) else None
     nova_branches=db.scalars(select(Branch).where(Branch.organisation_id==nova.id).order_by(Branch.name)).all()
@@ -75,7 +89,7 @@ def enrich_customer_demo(db):
     if not city_products:
         city_catalog=[("City süd 1 L","City Fresh","Süd məhsulları",2.65),("Portağal şirəsi","Sun City","İçkilər",3.25),("Düyü 1 kq","City Choice","Ərzaq",3.55),("Maye sabun","Pure City","Şəxsi qulluq",4.2),("Kağız dəsmal","Home City","Ev məhsulları",2.95),("Mineral su","City Spring","İçkilər",1.1)]
         for index,(name,brand,category,price) in enumerate(city_catalog,1):
-            item=Product(organisation_id=city.id,name=name,brand=brand,barcode=f"86900000{index:05d}",category=category,price=price,discount_price=round(price*.82,2) if index%2==0 else None,image_url=product_asset(category));db.add(item);city_products.append(item)
+            item=Product(organisation_id=city.id,name=name,brand=brand,barcode=f"86900000{index:05d}",category=category,price=price,discount_price=round(price*.82,2) if index%2==0 else None,image_url=product_asset(name,category));db.add(item);city_products.append(item)
         db.flush();db.add_all([ProductCategory(organisation_id=city.id,name=x) for x in sorted({p.category for p in city_products})])
         for p in city_products:db.add(ProductPrice(organisation_id=city.id,branch_id=city_branch.id,product_id=p.id,price=p.price,previous_price=round(p.price*1.08,2),available=True))
     if not db.scalar(select(News).where(News.organisation_id==city.id)):db.add(News(organisation_id=city.id,branch_id=city_branch.id,title_az="CityMart Gənclik yeniləndi",title_en="CityMart Ganjlik refreshed",summary_az="Yeni self-checkout zonası və təkrar emal nöqtəsi istifadəyə verildi.",summary_en="A new self-checkout area and recycling point are now available.",image_url="/assets/retail-news-v2.png"))
@@ -100,7 +114,7 @@ def run():
                     card.label="Nova Bonus" if index==1 else "Ailə kartı";card.card_number=f"990012340000{index:04d}";card.expiring_on=utc_now()+timedelta(days=30+index)
                 if len(cards)<2:
                     extra=LoyaltyCard(organisation_id=customer.organisation_id,user_id=customer.id,label="Ailə kartı",card_number="9900123400000002",balance=460,monthly_earned=75,expiring=20,expiring_on=utc_now()+timedelta(days=45));db.add(extra);db.flush();db.add(LoyaltyTransaction(organisation_id=customer.organisation_id,card_id=extra.id,amount=75,description="Ailə kartı üzrə alış bonusu"))
-                enrich_customer_demo(db);db.commit()
+                enrich_customer_demo(db);remove_retired_demo_news(db);db.commit()
             print("Demo data already exists");return
         nova=Organisation(name="Nova Market");city=Organisation(name="CityMart");db.add_all([nova,city]);db.flush()
         branches=[Branch(organisation_id=nova.id,name="Nova Market — Nərimanov",address="Təbriz küçəsi 42",distance_km=1.2),Branch(organisation_id=nova.id,name="Nova Market — Yasamal",address="Mətbuat prospekti 18",distance_km=3.4),Branch(organisation_id=nova.id,name="Nova Market — Xətai",address="Xocalı prospekti 15",distance_km=4.8),Branch(organisation_id=city.id,name="CityMart — Gənclik",address="Fətəli xan Xoyski 90",distance_km=2.1)];db.add_all(branches);db.flush()
@@ -117,6 +131,6 @@ def run():
         card=LoyaltyCard(organisation_id=nova.id,user_id=users[0].id,label="Nova Bonus",card_number="9900123400000001",balance=1280,monthly_earned=240,expiring=90,expiring_on=utc_now()+timedelta(days=31));db.add(card);db.flush();db.add_all([LoyaltyTransaction(organisation_id=nova.id,card_id=card.id,amount=120,description="Nərimanov filialında alış"),LoyaltyTransaction(organisation_id=nova.id,card_id=card.id,amount=-50,description="Demo bonus təklifi")]);family=LoyaltyCard(organisation_id=nova.id,user_id=users[0].id,label="Ailə kartı",card_number="9900123400000002",balance=460,monthly_earned=75,expiring=20,expiring_on=utc_now()+timedelta(days=45));db.add(family);db.flush();db.add(LoyaltyTransaction(organisation_id=nova.id,card_id=family.id,amount=75,description="Ailə kartı üzrə alış bonusu"))
         campaign=DiscountCampaign(organisation_id=nova.id,title="Həftənin seçilmişləri",description="Seçilmiş gündəlik məhsullarda filial endirimləri",starts_on=date.today()-timedelta(days=2),ends_on=date.today()+timedelta(days=10));db.add(campaign);db.flush();db.add_all([DiscountCampaignProduct(organisation_id=nova.id,campaign_id=campaign.id,product_id=p.id,branch_id=branches[0].id,discount_price=round(p.price*.8,2)) for p in products[:8]])
         db.add_all([OrganisationModule(organisation_id=nova.id,module=x,enabled=True) for x in ("REPORTS","AUDITS","VISION","LOYALTY")]);db.add(Notification(organisation_id=nova.id,user_id=users[0].id,kind="DISCOUNT",title="Yeni endirim",body="Həftənin seçilmiş məhsullarına baxın."));db.add(AuditTask(organisation_id=nova.id,branch_id=branches[0].id,assignee_id=users[3].id,title="Süd məhsullarının tarix auditi",instructions="İki fərqli süd məhsulunun barkodunu və son istifadə tarixini yoxlayın.",required_count=2,due_at=utc_now()+timedelta(hours=6),priority="HIGH"))
-        report=CustomerReport(tracking_number="MQ-DEMO1024",organisation_id=nova.id,branch_id=branches[0].id,customer_id=users[0].id,category="PRICE_MISMATCH",title="Rəfdə qiymət fərqlidir",description="Südün rəf etiketi tətbiqdəki cari qiymətdən fərqlənir.",status=IncidentStatus.NEW);incident=Incident(organisation_id=nova.id,branch_id=branches[0].id,report=report,source=IncidentSource.CUSTOMER_REPORT,category=report.category,title=report.title,description=report.description,status=IncidentStatus.NEW);incident.history.append(IncidentStatusHistory(status=IncidentStatus.NEW,note="Customer report received.",customer_note="Müraciətiniz qəbul edildi.",actor_id=users[0].id,actor_type="MANUAL"));db.add(incident);db.flush();enrich_customer_demo(db);db.commit();print("Seeded 2 organisations, 4 branches and 30 products")
+        report=CustomerReport(tracking_number="MQ-DEMO1024",organisation_id=nova.id,branch_id=branches[0].id,customer_id=users[0].id,category="PRICE_MISMATCH",title="Rəfdə qiymət fərqlidir",description="Südün rəf etiketi tətbiqdəki cari qiymətdən fərqlənir.",status=IncidentStatus.NEW);incident=Incident(organisation_id=nova.id,branch_id=branches[0].id,report=report,source=IncidentSource.CUSTOMER_REPORT,category=report.category,title=report.title,description=report.description,status=IncidentStatus.NEW);incident.history.append(IncidentStatusHistory(status=IncidentStatus.NEW,note="Customer report received.",customer_note="Müraciətiniz qəbul edildi.",actor_id=users[0].id,actor_type="MANUAL"));db.add(incident);db.flush();enrich_customer_demo(db);remove_retired_demo_news(db);db.commit();print("Seeded 2 organisations, 4 branches and 30 products")
 
 if __name__=="__main__":run()
